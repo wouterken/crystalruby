@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "crystalruby"
+require 'fileutils'
+
+# Define the actions for the commands
+def init
+  # Define some dummy content for the YAML file
+  yaml_content = <<~YAML
+    # crystalruby configuration file
+    crystal_src_dir: "./crystalruby/src"
+    crystal_lib_dir: "./crystalruby/lib"
+    crystal_main_file: "main.cr"
+    crystal_lib_name: "crlib"
+  YAML
+
+  # Create the file at the root of the current directory
+  File.write('crystalruby.yaml', yaml_content)
+  puts 'Initialized crystalruby.yaml file with dummy content.'
+end
+
+
+def install
+  Dir.chdir("#{CrystalRuby.config.crystal_src_dir}") do
+    if system('shards update')
+      puts 'Shards installed successfully.'
+    else
+      puts 'Error installing shards.'
+    end
+  end
+  clean
+end
+
+def clean
+  # This is a stub for the clear command
+  FileUtils.rm_rf("#{CrystalRuby.config.crystal_src_dir}/generated")
+end
+
+def build
+  # This is a stub for the build command
+  puts 'Build command is not implemented yet.'
+end
+
+# Main program
+if ARGV.empty?
+  puts "Usage: crystalruby [command]"
+  puts "Commands: init, clear, build"
+  exit 1
+end
+
+case ARGV[0]
+when "init"
+  init
+when "clean"
+  clean
+when "install"
+  install
+when "build"
+  build
+else
+  puts "Invalid command: #{ARGV[0]}"
+end
