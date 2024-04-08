@@ -1,5 +1,5 @@
-require 'singleton'
-require 'yaml'
+require "singleton"
+require "yaml"
 
 module CrystalRuby
   def self.config
@@ -14,10 +14,11 @@ module CrystalRuby
     def initialize
       # Set default configuration options
       @debug = true
-      if File.exist?("crystalruby.yaml")
-        @crystal_src_dir, @crystal_lib_dir, @crystal_main_file, @crystal_lib_name =
-        YAML.safe_load_file("crystalruby.yaml").values_at("crystal_src_dir","crystal_lib_dir","crystal_main_file", "crystal_lib_name")
-      end
+      return unless File.exist?("crystalruby.yaml")
+
+      @crystal_src_dir, @crystal_lib_dir, @crystal_main_file, @crystal_lib_name =
+        YAML.safe_load(IO.read("crystalruby.yaml")).values_at("crystal_src_dir", "crystal_lib_dir", "crystal_main_file",
+                                                              "crystal_lib_name")
     end
   end
 

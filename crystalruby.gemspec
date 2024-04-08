@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Embed Crystal code directly in Ruby."
   spec.homepage = "https://github.com/wouterken/crystalruby"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 2.7.2"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
@@ -32,10 +32,10 @@ Gem::Specification.new do |spec|
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"
-  spec.add_dependency 'ffi'
-  spec.add_dependency 'digest'
-  spec.add_dependency 'fileutils'
-  spec.add_dependency 'method_source'
+  spec.add_dependency "digest"
+  spec.add_dependency "ffi"
+  spec.add_dependency "fileutils"
+  spec.add_dependency "method_source"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end
