@@ -1,6 +1,6 @@
-# CrystalRuby
+# crystalruby
 
-Crystal Ruby is a gem that allows you to write Crystal code, inlined in Ruby. All you need is a modern crystal compiler installed on your system.
+`crystalruby` is a gem that allows you to write Crystal code, inlined in Ruby. All you need is a modern crystal compiler installed on your system.
 
 You can then turn simple methods into Crystal methods as easily as demonstrated below:
 
@@ -209,8 +209,15 @@ E.g.
 
 ```ruby
 # E.g. crystalruby_build.rb
+require "crystalruby"
+
+CrystalRuby.configure do |config|
+  config.debug = false
+end
+
 require_relative "foo"
 require_relative "bar"
+
 CrystalRuby.compile!
 ```
 
@@ -225,6 +232,26 @@ To do this execute:
 ```bash
 bundle exec crystalruby clean
 ```
+
+## Design Goals
+
+`crystalruby`'s primary purpose is provide ergonomic access to Crystal from Ruby, over FFI.
+For simple usage, advanced knowledge of Crystal should not be required.
+
+However, the abstraction it provides should remain simple, transparent, and easy to hack on and it should not preclude users from supplementing its capabilities with a more direct integration using ffi primtives.
+
+It should support escape hatches to allow it to coexist with code that performs a more direct [FFI](https://github.com/ffi/ffi) integration to implement advanced functionality not supported by `crystalruby`.
+
+The library is currently in its infancy. Planned additions are:
+
+- Replace existing checksum process, with one that combines results of inline and external crystal to more accurately detect when recompilation is necessary.
+- Support for automatic serialization of nested data structures (holding _ONLY_ primitives), using JSON as our serialization protocol (prioritizing portability over raw serialization performance. JSON generation and parsing is bundled into the stdlib in both languages).
+- Simple mixin/concern that utilises `FFI::Struct` for bi-directional passing of Ruby objects and Crystal objects (by value).
+- Install command to generate a sample build script, and supports build command (which simply verifies then invokes this script)
+- Call Ruby from Crystal using FFI callbacks (implement `.expose_to_crystal`)
+- Support long-lived synchronized objects (through use of synchronized memory arena to prevent GC).
+- Support for passing `crystalruby` types by reference (need to contend with GC).
+- Explore mechanisms to safely expose true parallelism using [FFI over Ractors](https://github.com/ffi/ffi/wiki/Ractors)
 
 ## Installation
 
@@ -246,7 +273,7 @@ Or install it yourself as:
 $ gem install crystalruby
 ```
 
-Crystal Ruby requires some basic initialization options inside a crystalruby.yaml file in the root of your project.
+`crystalruby` requires some basic initialization options inside a crystalruby.yaml file in the root of your project.
 You can run `crystalruby init` to generate a configuration file with sane defaults.
 
 ```bash
@@ -268,7 +295,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/crystalruby. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/crystalruby/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/wouterken/crystalruby. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/wouterken/crystalruby/blob/master/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -276,4 +303,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the Crystalruby project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/crystalruby/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the `crystalruby` project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/wouterken/crystalruby/blob/master/CODE_OF_CONDUCT.md).

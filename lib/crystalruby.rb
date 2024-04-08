@@ -5,18 +5,6 @@ require 'method_source'
 require_relative "crystalruby/config"
 require_relative "crystalruby/version"
 require_relative "crystalruby/typemaps"
-# TODO
-# Shards
-# Object methods
-# Fix bigint issues
-# * Initialize Crystal project
-# * Clear build artifacts
-# * Add config file
-# * Set release flag (Changes build target locations)
-# Struct Conversions
-# Classes
-# Test Nesting
-
 
 module CrystalRuby
 
