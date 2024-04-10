@@ -26,6 +26,32 @@ module CrystalRuby
       :string => "String"     # String type
     }
 
+    ERROR_VALUE = {
+      :char => "0",        # In Crystal, :char is typically represented as Int8
+      :uchar => "0",      # Unsigned char
+      :int8 => "0",        # Same as :char
+      :uint8 => "0",      # Same as :uchar
+      :short => "0",      # Short integer
+      :ushort => "0",    # Unsigned short integer
+      :int16 => "0",      # Same as :short
+      :uint16 => "0",    # Same as :ushort
+      :int => "0",        # Integer, Crystal defaults to 32 bits
+      :uint => "0",      # Unsigned integer
+      :int32 => "0",      # 32-bit integer
+      :uint32 => "0",    # 32-bit unsigned integer
+      :long => "0", # Long integer, size depends on the platform (32 or 64 bits)
+      :ulong => "0", # Unsigned long integer, size depends on the platform
+      :int64 => "0",      # 64-bit integer
+      :uint64 => "0",    # 64-bit unsigned integer
+      :long_long => "0",  # Same as :int64
+      :ulong_long => "0", # Same as :uint64
+      :float => "0.0",    # Floating point number (single precision)
+      :double => "0.0",   # Double precision floating point number
+      :bool => "false",        # Boolean type
+      :void => "Void",        # Void type
+      :string => '""'     # String type
+    }
+
     C_TYPE_MAP = CRYSTAL_TYPE_MAP.merge({
       :string => "UInt8*"
     })

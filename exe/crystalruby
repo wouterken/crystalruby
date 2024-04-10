@@ -13,6 +13,7 @@ def init
     crystal_lib_dir: "./crystalruby/lib"
     crystal_main_file: "main.cr"
     crystal_lib_name: "crlib"
+    crystal_codegen_dir: "generated"
   YAML
 
   # Create the file at the root of the current directory

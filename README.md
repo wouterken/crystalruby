@@ -120,8 +120,10 @@ end
 
 ## Types
 
-Currently only primitive types are supported. Structures are a WIP.
-To see the list of currently supported type mappings of FFI types to crystal types, you can check: `CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP`
+Currently primitive types are supported.
+Composite types are supported using JSON serialization.
+C-Structures are a WIP.
+To see the list of currently supported primitive type mappings of FFI types to crystal types, you can check: `CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP`
 E.g.
 
 ```ruby
@@ -151,7 +153,54 @@ CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP
  :string=>"String"}
 ```
 
-### Installing shards and writing non-embedded Crystal code
+## Composite Types (using JSON serialization)
+
+The library allows you to pass complex nested structures using JSON as a serialization format.
+The type signatures for composite types can use ordinary Crystal Type syntax.
+Type conversion is applied automatically.
+
+E.g.
+
+```ruby
+crystalize [a: json{ Int64 | Float64 | Nil }, b: json{ String | Array(Bool)  } ] => :void
+def complex_argument_types
+  puts "Got #{a} and #{b}"
+end
+
+crystalize [] => json{ Int32 | String | Hash(String, Array(NamedTuple(hello: Int32)) | Time)}
+def complex_return_type
+  return {
+    "hello" => [
+      {
+        hello: 1,
+      },
+    ],
+    "world" => Time.utc
+  }
+end
+```
+
+Type signatures validations are applied to both arguments and return types.
+
+```ruby
+[1] pry(main)> Foo.complex_argument_types(nil, "test")
+Got  and test
+=> nil
+
+[2] pry(main)> Foo.complex_argument_types(88, [true, false, true])
+Got 88 and [true, false, true]
+=> nil
+
+[3] pry(main)> Foo.complex_argument_types(88, [true, false, 88])
+ArgumentError: Expected Bool but was Int at line 1, column 15
+from crystalruby.rb:303:in `block in compile!'
+```
+
+## Exceptions
+
+Exceptions thrown in Crystal code can be caught in Ruby.
+
+## Installing shards and writing non-embedded Crystal code
 
 You can use any Crystal shards and write ordinary, stand-alone Crystal code.
 
