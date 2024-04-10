@@ -196,6 +196,22 @@ ArgumentError: Expected Bool but was Int at line 1, column 15
 from crystalruby.rb:303:in `block in compile!'
 ```
 
+## Named Types
+
+You can name your types, for more succinct method signatures.
+The type names will be mirrored in the generated Crystal code.
+E.g.
+
+```ruby
+
+IntArrOrBoolArr = crtype{ Array(Bool) | Array(Int32) }
+
+crystalize [a: IntArrOrBoolArr] => json{ IntArrOrBoolArr }
+def method_with_named_types(a)
+  return a
+end
+```
+
 ## Exceptions
 
 Exceptions thrown in Crystal code can be caught in Ruby.
@@ -294,7 +310,6 @@ It should support escape hatches to allow it to coexist with code that performs 
 The library is currently in its infancy. Planned additions are:
 
 - Replace existing checksum process, with one that combines results of inline and external crystal to more accurately detect when recompilation is necessary.
-- Support for automatic serialization of nested data structures (holding _ONLY_ primitives), using JSON as our serialization protocol (prioritizing portability over raw serialization performance. JSON generation and parsing is bundled into the stdlib in both languages).
 - Simple mixin/concern that utilises `FFI::Struct` for bi-directional passing of Ruby objects and Crystal objects (by value).
 - Install command to generate a sample build script, and supports build command (which simply verifies then invokes this script)
 - Call Ruby from Crystal using FFI callbacks (implement `.expose_to_crystal`)

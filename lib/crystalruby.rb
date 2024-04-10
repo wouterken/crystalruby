@@ -112,7 +112,9 @@ module CrystalRuby
         fn_ret_type: return_type[:crystal_type],
         lib_fn_args: arg_types.map { |k, arg_type| "_#{k}: #{arg_type[:lib_type]}" }.join(","),
         lib_fn_ret_type: return_type[:lib_type],
-        convert_lib_args:  arg_types.map{|k, arg_type| "#{k} = #{arg_type[:convert_lib_to_crystal_type]["_#{k}"]}" }.join("\n    "),
+        convert_lib_args: arg_types.map do |k, arg_type|
+          "#{k} = #{arg_type[:convert_lib_to_crystal_type]["_#{k}"]}"
+        end.join("\n    "),
         arg_names: args.keys.join(","),
         convert_return_type: return_type[:convert_crystal_to_lib_type]["return_value"],
         error_value: return_type[:error_value]
@@ -212,7 +214,10 @@ module CrystalRuby
     FileUtils.mkdir_p "#{config.crystal_src_dir}/#{config.crystal_codegen_dir}"
     FileUtils.mkdir_p "#{config.crystal_lib_dir}"
     unless File.exist?("#{config.crystal_src_dir}/#{config.crystal_main_file}")
-      IO.write("#{config.crystal_src_dir}/#{config.crystal_main_file}", "require \"./#{config.crystal_codegen_dir}/index\"\n")
+      IO.write(
+        "#{config.crystal_src_dir}/#{config.crystal_main_file}",
+        "require \"./#{config.crystal_codegen_dir}/index\"\n"
+      )
     end
     return if File.exist?("#{config.crystal_src_dir}/shard.yml")
 
@@ -295,12 +300,11 @@ module CrystalRuby
     extend FFI::Library
     ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
     attach_function :attach_rb_error_handler, [:pointer], :int
-    const_set(:ErrorCallback, FFI::Function.new(:void, [:string, :string]) do |error_type, message|
+    const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
       error_type = error_type.to_sym
-      error_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception) ?
-        Object.const_get(error_type) :
-        RuntimeError
-        raise error_type.new(message)
+      is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
+      error_type = is_exception_type ?  Object.const_get(error_type) : RuntimeError
+      raise error_type.new(message)
     end)
     attach_rb_error_handler(ErrorCallback)
   end
@@ -313,7 +317,9 @@ module CrystalRuby
   end
 
   def self.write_function(owner, name:, body:, &compile_callback)
-    @compiled = File.exist?("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/index.cr") unless defined?(@compiled)
+    unless defined?(@compiled)
+      @compiled = File.exist?("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/index.cr")
+    end
     @block_store ||= []
     @block_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
     FileUtils.mkdir_p("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}")
