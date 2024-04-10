@@ -349,7 +349,6 @@ It should support escape hatches to allow it to coexist with code that performs 
 
 The library is currently in its infancy. Planned additions are:
 
-- Replace existing checksum process, with one that combines results of inline and external crystal to more accurately detect when recompilation is necessary.
 - Simple mixin/concern that utilises `FFI::Struct` for bi-directional passing of Ruby objects and Crystal objects (by value).
 - Install command to generate a sample build script, and supports build command (which simply verifies then invokes this script)
 - Call Ruby from Crystal using FFI callbacks (implement `.expose_to_crystal`)

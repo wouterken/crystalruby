@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "ffi"
 require "digest"
 require "fileutils"
@@ -10,6 +12,7 @@ require_relative "crystalruby/typebuilder"
 require_relative "crystalruby/template"
 
 module CrystalRuby
+  CR_SRC_FILES_PATTERN = "./**/*.cr"
   # Define a method to set the @crystalize proc if it doesn't already exist
   def crystalize(type = :src, **options, &block)
     (args,), returns = options.first
@@ -27,14 +30,6 @@ module CrystalRuby
 
   def json(&block)
     crtype(&block).serialize_as(:json)
-  end
-
-  def with_temporary_constant(constant_name, new_value)
-    old_value = const_get(constant_name)
-    const_set(constant_name, new_value)
-    yield
-  ensure
-    const_set(constant_name, old_value)
   end
 
   def method_added(method_name)
@@ -64,8 +59,7 @@ module CrystalRuby
     CrystalRuby.write_function(self, name: function[:name], body: function[:body]) do
       extend FFI::Library
       ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
-      attach_function "#{method_name}", fname, function[:ffi_types], function[:return_ffi_type]
-      attach_function "init!", "init", [], :void
+      attach_function method_name, fname, function[:ffi_types], function[:return_ffi_type]
       if block
         [singleton_class, self].each do |receiver|
           receiver.prepend(Module.new do
@@ -73,8 +67,6 @@ module CrystalRuby
           end)
         end
       end
-
-      init!
     end
 
     [singleton_class, self].each do |receiver|
@@ -219,6 +211,9 @@ module CrystalRuby
         "require \"./#{config.crystal_codegen_dir}/index\"\n"
       )
     end
+
+    attach_crystal_ruby_lib! if compiled?
+
     return if File.exist?("#{config.crystal_src_dir}/shard.yml")
 
     IO.write("#{config.crystal_src_dir}/shard.yml", <<~CRYSTAL)
@@ -227,11 +222,25 @@ module CrystalRuby
     CRYSTAL
   end
 
+  def attach_crystal_ruby_lib!
+    extend FFI::Library
+    ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
+    attach_function "init!", :init, [:pointer], :void
+    const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
+      error_type = error_type.to_sym
+      is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
+      error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
+      raise error_type.new(message)
+    end)
+    init!(ErrorCallback)
+  end
+
   def self.instantiated?
     @instantiated
   end
 
   def self.compiled?
+    @compiled = get_current_crystal_lib_digest == get_cr_src_files_digest unless defined?(@compiled)
     @compiled
   end
 
@@ -293,21 +302,14 @@ module CrystalRuby
             end
 
       unless result = system(cmd)
-        File.delete("#{config.crystal_codegen_dir}/index.cr") if File.exist?("#{config.crystal_codegen_dir}/index.cr")
+        File.delete(digest_file_name) if File.exist?(digest_file_name)
         raise "Error compiling crystal code"
       end
-      @compiled = true
     end
-    extend FFI::Library
-    ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
-    attach_function :attach_rb_error_handler, [:pointer], :int
-    const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
-      error_type = error_type.to_sym
-      is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
-      error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
-      raise error_type.new(message)
-    end)
-    attach_rb_error_handler(ErrorCallback)
+
+    IO.write(digest_file_name, get_cr_src_files_digest)
+    @compiled = true
+    attach_crystal_ruby_lib!
   end
 
   def self.attach!
@@ -317,10 +319,23 @@ module CrystalRuby
     @attached = true
   end
 
+  def self.get_cr_src_files_digest
+    file_digests = Dir.glob(CR_SRC_FILES_PATTERN).sort.map do |file_path|
+      content = File.read(file_path)
+      Digest::MD5.hexdigest(content)
+    end.join
+    Digest::MD5.hexdigest(file_digests)
+  end
+
+  def self.digest_file_name
+    @digest_file_name ||= "#{config.crystal_lib_dir}/#{config.crystal_lib_name}.digest"
+  end
+
+  def self.get_current_crystal_lib_digest
+    File.read(digest_file_name) if File.exist?(digest_file_name)
+  end
+
   def self.write_function(owner, name:, body:, &compile_callback)
-    unless defined?(@compiled)
-      @compiled = File.exist?("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/index.cr")
-    end
     @block_store ||= []
     @block_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
     FileUtils.mkdir_p("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}")
