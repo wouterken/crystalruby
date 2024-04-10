@@ -1,4 +1,3 @@
-require 'pry-byebug'
 module CrystalRuby
   module Template
     Dir[File.join(File.dirname(__FILE__), "templates", "*.cr")].each do |file|
