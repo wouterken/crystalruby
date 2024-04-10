@@ -1,4 +1,19 @@
-# crystalruby
+<table>
+  <tr>
+    <td><img src="logo.png" alt="logo" width="150"></td>
+    <td>
+      <h1 align="center">crystalruby</h1>
+      <p align="center">
+        <a href="https://rubygems.org/gems/crystalruby">
+          <img alt="GEM Version" src="https://img.shields.io/gem/v/crystalruby?color=168AFE&include_prereleases&logo=ruby&logoColor=FE1616">
+        </a><br>
+        <a href="https://rubygems.org/gems/crystalruby">
+          <img alt="GEM Downloads" src="https://img.shields.io/gem/dt/crystalruby?color=168AFE&logo=ruby&logoColor=FE1616">
+        </a>
+      </p>
+    </td>
+  </tr>
+</table>
 
 `crystalruby` is a gem that allows you to write Crystal code, inlined in Ruby. All you need is a modern crystal compiler installed on your system.
 
