@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.1.4] - 2024-04-10
+
+- Fix bug in type checking on deserialization of union types
+
 ## [0.1.3] - 2024-04-10
 
 - Support exceptions thrown in Crystal being caught in Ruby

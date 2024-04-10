@@ -27,7 +27,11 @@ module CrystalRuby
       def interpret!(raw)
         union_types.each do |type|
           if type.interprets?(raw)
-            return type.interpret!(raw)
+            begin
+              return type.interpret!(raw)
+            rescue
+              # Pass
+            end
           end
         end
         raise "Invalid deserialized value #{raw} for type #{inspect}"
