@@ -292,10 +292,11 @@ module CrystalRuby
               "crystal build --release --no-debug -o #{lib_target} #{config.crystal_main_file}"
             end
 
-      raise "Error compiling crystal code" unless result = system(cmd)
-
+      unless result = system(cmd)
+        File.delete("#{config.crystal_codegen_dir}/index.cr") if File.exist?("#{config.crystal_codegen_dir}/index.cr")
+        raise "Error compiling crystal code"
+      end
       @compiled = true
-      File.delete("#{config.crystal_codegen_dir}/index.cr") if File.exist?("#{config.crystal_codegen_dir}/index.cr")
     end
     extend FFI::Library
     ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
@@ -303,7 +304,7 @@ module CrystalRuby
     const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
       error_type = error_type.to_sym
       is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
-      error_type = is_exception_type ?  Object.const_get(error_type) : RuntimeError
+      error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
       raise error_type.new(message)
     end)
     attach_rb_error_handler(ErrorCallback)

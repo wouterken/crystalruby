@@ -133,6 +133,31 @@ def add(a, b)
 end
 ```
 
+## Getting Started
+
+The below is a stand-alone one-file script that allows you to quickly see crystalruby in action.
+
+```ruby
+# crystalrubytest.rb
+require 'bundler/inline'
+
+gemfile do
+  source 'https://rubygems.org'
+  gem 'crystalruby', path: '../crystalruby'
+end
+
+require 'crystalruby'
+
+module Adder
+  crystalize [a: :int, b: :int] => :int
+  def add(a, b)
+    a + b
+  end
+end
+
+puts Adder.add(1, 2)
+```
+
 ## Types
 
 Currently primitive types are supported.
@@ -249,7 +274,7 @@ Remember to require these installed shards after installing them. E.g. inside `.
 
 You can edit the default paths for crystal source and library files from within the `./crystalruby.yaml` config file.
 
-### Wrapping Crystal code in Ruby
+## Wrapping Crystal code in Ruby
 
 Sometimes you may want to wrap a Crystal method in Ruby, so that you can use Ruby before the Crystal code to prepare arguments, or after the Crystal code, to apply transformations to the result. A real-life example of this might be an ActionController method, where you might want to use Ruby to parse the request, perform auth etc., and then use Crystal to perform some heavy computation, before returning the result from Ruby.
 To do this, you simply pass a block to the `crystalize` method, which will serve as the Ruby entry point to the function. From within this block, you can invoke `super` to call the Crystal method, and then apply any Ruby transformations to the result.
@@ -270,7 +295,7 @@ end
 MyModule.add("1", "2")
 ```
 
-### Release Builds
+## Release Builds
 
 You can control whether CrystalRuby builds in debug or release mode by setting following config option
 
@@ -303,7 +328,7 @@ CrystalRuby.compile!
 
 Then you can run this file as part of your build step, to ensure all Crystal code is compiled ahead of time.
 
-### Troubleshooting
+## Troubleshooting
 
 The logic to detect when to JIT recompile is not robust and can end up in an inconsistent state. To remedy this it is useful to clear out all generated assets and build from scratch.
 
