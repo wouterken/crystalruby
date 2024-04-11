@@ -86,7 +86,10 @@ module CrystalRuby
       receiver.prepend(Module.new do
         define_method(method_name) do |*args|
           CrystalRuby.compile! unless CrystalRuby.compiled?
-          CrystalRuby.attach! unless CrystalRuby.attached?
+          unless CrystalRuby.attached?
+            CrystalRuby.attach!
+            return send(method_name, *args) if block
+          end
           args.each_with_index do |arg, i|
             args[i] = function[:arg_maps][i][arg] if function[:arg_maps][i]
           end
