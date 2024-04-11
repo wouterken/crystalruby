@@ -143,7 +143,7 @@ require 'bundler/inline'
 
 gemfile do
   source 'https://rubygems.org'
-  gem 'crystalruby', path: '../crystalruby'
+  gem 'crystalruby'
 end
 
 require 'crystalruby'
