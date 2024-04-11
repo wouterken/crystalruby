@@ -22,6 +22,19 @@ module CrystalRuby
     @crystalize_next = { raw: type.to_sym == :raw, args: args, returns: returns, block: block }
   end
 
+  def crystal(type = :src, &block)
+    inline_crystal_body = Template.render(
+      Template::InlineChunk,
+      {
+        module_name: name,
+        body: block.source.lines[
+          type == :raw ? 2...-2 : 1...-1
+        ].join("\n")
+      }
+    )
+    CrystalRuby.write_chunk(self, body: inline_crystal_body)
+  end
+
   def crtype(&block)
     TypeBuilder.with_injected_type_dsl(self) do
       TypeBuilder.build(&block)
@@ -56,7 +69,7 @@ module CrystalRuby
     args ||= {}
     @crystalize_next = nil
     function = build_function(self, method_name, args, returns, function_body)
-    CrystalRuby.write_function(self, name: function[:name], body: function[:body]) do
+    CrystalRuby.write_chunk(self, name: function[:name], body: function[:body]) do
       extend FFI::Library
       ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
       attach_function method_name, fname, function[:ffi_types], function[:return_ffi_type]
@@ -226,6 +239,7 @@ module CrystalRuby
     extend FFI::Library
     ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
     attach_function "init!", :init, [:pointer], :void
+    send(:remove_const, :ErrorCallback) if defined?(ErrorCallback)
     const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
       error_type = error_type.to_sym
       is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
@@ -314,7 +328,7 @@ module CrystalRuby
 
   def self.attach!
     @block_store.each do |function|
-      function[:compile_callback].call
+      function[:compile_callback]&.call
     end
     @attached = true
   end
@@ -335,7 +349,7 @@ module CrystalRuby
     File.read(digest_file_name) if File.exist?(digest_file_name)
   end
 
-  def self.write_function(owner, name:, body:, &compile_callback)
+  def self.write_chunk(owner, body:, name: Digest::MD5.hexdigest(body), &compile_callback)
     @block_store ||= []
     @block_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
     FileUtils.mkdir_p("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}")

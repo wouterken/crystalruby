@@ -295,6 +295,131 @@ end
 MyModule.add("1", "2")
 ```
 
+## Inline Chunks
+
+`crystalruby` also allows you to write inline Crystal code that does not require binding to Ruby. This can be useful for e.g. performing setup or teardown operations.
+
+Follow these steps for a toy example of how we can use crystalized ruby and inline chunks to expose the [crystal-redis](https://github.com/stefanwille/crystal-redis) library to Ruby.
+
+1. Start our toy project
+
+```bash
+mkdir crystalredis
+cd crystalredis
+bundle init
+```
+
+2. Add dependencies to our Gemfile and run `bundle install`
+
+```ruby
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem 'crystalruby'
+
+# Let's see if performance is comparable to that of the redis gem.
+gem 'benchmark-ips'
+gem 'redis'
+```
+
+3. Write our Redis client
+
+```ruby
+# Filename: crystalredis.rb
+require 'crystalruby'
+
+module CrystalRedis
+
+  crystal do
+    CLIENT = Redis.new
+    def self.client
+      CLIENT
+    end
+  end
+
+  crystalize [key: :string, value: :string] => :void
+  def set(key, value)
+    client.set(key, value)
+  end
+
+  crystalize [key: :string] => :string
+  def get(key)
+    client.get(key).to_s
+  end
+end
+```
+
+4. Load the modules (without running them) to generate our Crystal project skeleton.
+
+```bash
+bundle exec ruby crystalredis.rb
+```
+
+5. Add the missing Redis dependency to our shard.yml
+
+```yaml
+# filename:  crystalruby/src/shard.yml
+dependencies:
+  redis:
+    github: stefanwille/crystal-redis
+```
+
+```ruby
+# filename: main.cr
+require "redis"
+require "./generated/index"
+```
+
+```bash
+bundle exec crystalruby install
+```
+
+6. Compile and benchmark our new module in Ruby
+
+```ruby
+# Filename: benchmark.rb
+# Let's compare the performance of our CrystalRedis module to the Ruby Redis gem
+require_relative "crystalredis"
+require 'redis'
+require 'benchmark/ips'
+
+Benchmark.ips do |x|
+  rbredis = Redis.new
+
+  x.report(:crredis) do
+    CrystalRedis.set("hello", "world")
+    CrystalRedis.get("hello")
+  end
+
+  x.report(:rbredis) do
+    rbredis.set("hello", "world")
+    rbredis.get("hello")
+  end
+end
+```
+
+7. Run the benchmark
+
+```bash
+$ bundle exec ruby benchmark.rb
+```
+
+### Output
+
+```bash
+
+#crystalredis wins! (Warm up during first run will be slow for crredis, due to first compilation)
+
+ruby 3.3.0 (2023-12-25 revision 5124f9ac75) [arm64-darwin22]
+Warming up --------------------------------------
+             crredis     1.946k i/100ms
+             rbredis     1.749k i/100ms
+Calculating -------------------------------------
+             crredis     22.319k (± 1.7%) i/s -    112.868k in   5.058448s
+             rbredis     16.861k (± 9.1%) i/s -     83.952k in   5.024941s
+```
+
 ## Release Builds
 
 You can control whether CrystalRuby builds in debug or release mode by setting following config option
@@ -340,7 +465,7 @@ bundle exec crystalruby clean
 
 ## Design Goals
 
-`crystalruby`'s primary purpose is provide ergonomic access to Crystal from Ruby, over FFI.
+`crystalruby`'s primary purpose is to provide ergonomic access to Crystal from Ruby, over FFI.
 For simple usage, advanced knowledge of Crystal should not be required.
 
 However, the abstraction it provides should remain simple, transparent, and easy to hack on and it should not preclude users from supplementing its capabilities with a more direct integration using ffi primtives.
