@@ -2,7 +2,7 @@
 
 require "bundler/setup"
 require "crystalruby"
-require 'fileutils'
+require "fileutils"
 
 # Define the actions for the commands
 def init
@@ -14,20 +14,20 @@ def init
     crystal_main_file: "main.cr"
     crystal_lib_name: "crlib"
     crystal_codegen_dir: "generated"
+    debug: true
   YAML
 
   # Create the file at the root of the current directory
-  File.write('crystalruby.yaml', yaml_content)
-  puts 'Initialized crystalruby.yaml file with dummy content.'
+  File.write("crystalruby.yaml", yaml_content)
+  puts "Initialized crystalruby.yaml file with dummy content."
 end
-
 
 def install
   Dir.chdir("#{CrystalRuby.config.crystal_src_dir}") do
-    if system('shards update')
-      puts 'Shards installed successfully.'
+    if system("shards update")
+      puts "Shards installed successfully."
     else
-      puts 'Error installing shards.'
+      puts "Error installing shards."
     end
   end
   clean
@@ -40,7 +40,7 @@ end
 
 def build
   # This is a stub for the build command
-  puts 'Build command is not implemented yet.'
+  puts "Build command is not implemented yet."
 end
 
 # Main program

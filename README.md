@@ -501,7 +501,7 @@ Or install it yourself as:
 $ gem install crystalruby
 ```
 
-`crystalruby` requires some basic initialization options inside a crystalruby.yaml file in the root of your project.
+`crystalruby` supports some basic configuration options, which can be specified inside a crystalruby.yaml file in the root of your project.
 You can run `crystalruby init` to generate a configuration file with sane defaults.
 
 ```bash
@@ -513,6 +513,21 @@ crystal_src_dir: "./crystalruby/src"
 crystal_lib_dir: "./crystalruby/lib"
 crystal_main_file: "main.cr"
 crystal_lib_name: "crlib"
+crystal_codegen_dir: "generated"
+debug: true
+```
+
+Alternatively, these can be set programmatically:
+
+```ruby
+CrystalRuby.configure do |config|
+  config.crystal_src_dir = "./crystalruby/src"
+  config.crystal_lib_dir = "./crystalruby/lib"
+  config.crystal_main_file = "main.cr"
+  config.crystal_lib_name = "crlib"
+  config.crystal_codegen_dir = "generated"
+  config.debug = true
+end
 ```
 
 ## Development
