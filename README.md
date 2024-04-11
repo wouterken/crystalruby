@@ -87,7 +87,7 @@ module Cache
   end
 
   crystalize [key: :string, value: :string] => :string
-  def redis_set_and_return(key)
+  def redis_set_and_return(key, value)
     redis = Redis::Client.new
     redis.set(key, value)
     Cache.redis_get(key)
