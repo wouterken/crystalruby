@@ -39,7 +39,6 @@ With as small a change as this, you should be able to see a significant increase
 E.g.
 
 ```ruby
-
 require 'crystalruby'
 require 'benchmark'
 
@@ -64,7 +63,6 @@ end
 
 puts(Benchmark.realtime { 1_000_000.times { Fibonnaci.fib_rb(30) } })
 puts(Benchmark.realtime { 1_000_000.times { Fibonnaci.fib_cr(30) } })
-
 ```
 
 ```bash
@@ -243,7 +241,6 @@ The type names will be mirrored in the generated Crystal code.
 E.g.
 
 ```ruby
-
 IntArrOrBoolArr = crtype{ Array(Bool) | Array(Int32) }
 
 crystalize [a: IntArrOrBoolArr] => json{ IntArrOrBoolArr }
@@ -330,7 +327,6 @@ gem 'redis'
 require 'crystalruby'
 
 module CrystalRedis
-
   crystal do
     CLIENT = Redis.new
     def self.client
@@ -359,7 +355,7 @@ bundle exec ruby crystalredis.rb
 5. Add the missing Redis dependency to our shard.yml
 
 ```yaml
-# filename:  crystalruby/src/shard.yml
+# filename: crystalruby/src/shard.yml
 dependencies:
   redis:
     github: stefanwille/crystal-redis
