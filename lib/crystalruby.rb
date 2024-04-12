@@ -4,12 +4,15 @@ require "ffi"
 require "digest"
 require "fileutils"
 require "method_source"
+require "pathname"
+
 require_relative "crystalruby/config"
 require_relative "crystalruby/version"
 require_relative "crystalruby/typemaps"
 require_relative "crystalruby/types"
 require_relative "crystalruby/typebuilder"
 require_relative "crystalruby/template"
+require_relative "crystalruby/compilation"
 
 module CrystalRuby
   CR_SRC_FILES_PATTERN = "./**/*.cr"
@@ -71,7 +74,7 @@ module CrystalRuby
     function = build_function(self, method_name, args, returns, function_body)
     CrystalRuby.write_chunk(self, name: function[:name], body: function[:body]) do
       extend FFI::Library
-      ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
+      ffi_lib config.crystal_lib_dir / config.crystal_lib_name
       attach_function method_name, fname, function[:ffi_types], function[:return_ffi_type]
       if block
         [singleton_class, self].each do |receiver|
@@ -85,7 +88,7 @@ module CrystalRuby
     [singleton_class, self].each do |receiver|
       receiver.prepend(Module.new do
         define_method(method_name) do |*args|
-          CrystalRuby.compile! unless CrystalRuby.compiled?
+          CrystalRuby.build! unless CrystalRuby.compiled?
           unless CrystalRuby.attached?
             CrystalRuby.attach!
             return send(method_name, *args) if block
@@ -219,28 +222,29 @@ module CrystalRuby
         raise "Missing config option `#{config_key}`. \nProvide this inside crystalruby.yaml (run `bundle exec crystalruby init` to generate this file with detaults)"
       end
     end
-    FileUtils.mkdir_p "#{config.crystal_src_dir}/#{config.crystal_codegen_dir}"
-    FileUtils.mkdir_p "#{config.crystal_lib_dir}"
-    unless File.exist?("#{config.crystal_src_dir}/#{config.crystal_main_file}")
+    FileUtils.mkdir_p config.crystal_codegen_dir_abs
+    FileUtils.mkdir_p config.crystal_lib_dir_abs
+    FileUtils.mkdir_p config.crystal_src_dir_abs
+    unless File.exist?(config.crystal_src_dir_abs / config.crystal_main_file)
       IO.write(
-        "#{config.crystal_src_dir}/#{config.crystal_main_file}",
+        config.crystal_src_dir_abs / config.crystal_main_file,
         "require \"./#{config.crystal_codegen_dir}/index\"\n"
       )
     end
 
     attach_crystal_ruby_lib! if compiled?
 
-    return if File.exist?("#{config.crystal_src_dir}/shard.yml")
+    return if File.exist?(config.crystal_src_dir / "shard.yml")
 
-    IO.write("#{config.crystal_src_dir}/shard.yml", <<~CRYSTAL)
+    IO.write("#{config.crystal_src_dir}/shard.yml", <<~YAML)
       name: src
       version: 0.1.0
-    CRYSTAL
+    YAML
   end
 
   def attach_crystal_ruby_lib!
     extend FFI::Library
-    ffi_lib "#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
+    ffi_lib config.crystal_lib_dir / config.crystal_lib_name
     attach_function "init!", :init, [:pointer], :void
     send(:remove_const, :ErrorCallback) if defined?(ErrorCallback)
     const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
@@ -272,24 +276,19 @@ module CrystalRuby
 
   def type_modules
     (@types_cache || {}).map do |type_name, expr|
-      typedef = ""
       parts = type_name.split("::")
-      indent = ""
-      parts[0...-1].each do |part|
-        typedef << "#{indent} module #{part}\n"
-        indent += "  "
+      typedef = parts[0...-1].each_with_index.reduce("") do |acc, (part, index)|
+        acc + "#{"  " * index}module #{part}\n"
       end
-      typedef << "#{indent}alias #{parts[-1]} = #{expr}\n"
-      parts[0...-1].each do |_part|
-        indent = indent[0...-2]
-        typedef << "#{indent} end\n"
+      typedef += "#{"  " * (parts.size - 1)}alias #{parts.last} = #{expr}\n"
+      typedef + parts[0...-1].reverse.each_with_index.reduce("") do |acc, (_part, index)|
+        acc + "#{"  " * (parts.size - 2 - index)}end\n"
       end
-      typedef
     end.join("\n")
   end
 
   def self.requires
-    @block_store.map do |function|
+    chunk_store.map do |function|
       function_data = function[:body]
       file_digest = Digest::MD5.hexdigest function_data
       fname = function[:name]
@@ -297,40 +296,26 @@ module CrystalRuby
     end.join("\n")
   end
 
-  def self.compile!
-    return unless @block_store
-
-    index_content = Template.render(
+  def self.build!
+    File.write config.crystal_codegen_dir_abs / "index.cr", Template.render(
       Template::Index,
-      {
-        type_modules: type_modules,
-        requires: requires
-      }
+      type_modules: type_modules,
+      requires: requires
     )
-
-    File.write("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/index.cr", index_content)
-    lib_target = "#{Dir.pwd}/#{config.crystal_lib_dir}/#{config.crystal_lib_name}"
-
-    Dir.chdir(config.crystal_src_dir) do
-      cmd = if config.debug
-              "crystal build -o #{lib_target} #{config.crystal_main_file}"
-            else
-              "crystal build --release --no-debug -o #{lib_target} #{config.crystal_main_file}"
-            end
-
-      unless result = system(cmd)
-        File.delete(digest_file_name) if File.exist?(digest_file_name)
-        raise "Error compiling crystal code"
-      end
+    if @compiled = CrystalRuby::Compilation.compile!(
+      verbose: config.verbose,
+      debug: config.debug
+    )
+      IO.write(digest_file_name, get_cr_src_files_digest)
+      attach_crystal_ruby_lib!
+    else
+      File.delete(digest_file_name) if File.exist?(digest_file_name)
+      raise "Error compiling crystal code"
     end
-
-    IO.write(digest_file_name, get_cr_src_files_digest)
-    @compiled = true
-    attach_crystal_ruby_lib!
   end
 
   def self.attach!
-    @block_store.each do |function|
+    @chunk_store.each do |function|
       function[:compile_callback]&.call
     end
     @attached = true
@@ -345,7 +330,11 @@ module CrystalRuby
   end
 
   def self.digest_file_name
-    @digest_file_name ||= "#{config.crystal_lib_dir}/#{config.crystal_lib_name}.digest"
+    @digest_file_name ||= config.crystal_lib_dir_abs / "#{config.crystal_lib_name}.digest"
+  end
+
+  def self.chunk_store
+    @chunk_store ||= []
   end
 
   def self.get_current_crystal_lib_digest
@@ -353,26 +342,25 @@ module CrystalRuby
   end
 
   def self.write_chunk(owner, body:, name: Digest::MD5.hexdigest(body), &compile_callback)
-    @block_store ||= []
-    @block_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
-    FileUtils.mkdir_p("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}")
-    existing = Dir.glob("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/**/*.cr")
-    @block_store.each do |function|
+    chunk_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
+    FileUtils.mkdir_p(config.crystal_codegen_dir_abs)
+    existing = Dir.glob("#{config.crystal_codegen_dir_abs}/**/*.cr")
+    chunk_store.each do |function|
       owner_name = function[:owner].name
-      FileUtils.mkdir_p("#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/#{owner_name}")
+      FileUtils.mkdir_p(config.crystal_codegen_dir_abs / owner_name)
       function_data = function[:body]
       fname = function[:name]
       file_digest = Digest::MD5.hexdigest function_data
-      filename = "#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/#{owner_name}/#{fname}_#{file_digest}.cr"
-      unless existing.delete(filename)
+      filename = config.crystal_codegen_dir_abs / owner_name / "#{fname}_#{file_digest}.cr"
+      unless existing.delete(filename.to_s)
         @compiled = false
         @attached = false
         File.write(filename, function_data)
       end
       existing.select do |f|
-        f =~ %r{#{config.crystal_src_dir}/#{config.crystal_codegen_dir}/#{owner_name}/#{fname}_[a-f0-9]{32}\.cr}
+        f =~ /#{config.crystal_codegen_dir / owner_name / "#{fname}_[a-f0-9]{32}\.cr"}/
       end.each do |fl|
-        File.delete(fl) unless fl.eql?(filename)
+        File.delete(fl) unless fl.eql?(filename.to_s)
       end
     end
   end

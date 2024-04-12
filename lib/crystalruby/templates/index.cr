@@ -43,4 +43,5 @@ end
 %{type_modules}
 
 # Require all generated crystal files
+require "json"
 %{requires}
