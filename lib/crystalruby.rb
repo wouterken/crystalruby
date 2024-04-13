@@ -13,115 +13,37 @@ require_relative "crystalruby/types"
 require_relative "crystalruby/typebuilder"
 require_relative "crystalruby/template"
 require_relative "crystalruby/compilation"
+require_relative "crystalruby/adapter"
+require_relative "crystalruby/reactor"
 
 module CrystalRuby
   CR_SRC_FILES_PATTERN = "./**/*.cr"
-  # Define a method to set the @crystalize proc if it doesn't already exist
-  def crystalize(type = :src, **options, &block)
-    (args,), returns = options.first
-    args ||= {}
-    raise "Arguments should be of the form name: :type. Got #{args}" unless args.is_a?(Hash)
-
-    @crystalize_next = { raw: type.to_sym == :raw, args: args, returns: returns, block: block }
-  end
-
-  def crystal(type = :src, &block)
-    inline_crystal_body = Template.render(
-      Template::InlineChunk,
-      {
-        module_name: name,
-        body: block.source.lines[
-          type == :raw ? 2...-2 : 1...-1
-        ].join("\n")
-      }
-    )
-    CrystalRuby.write_chunk(self, body: inline_crystal_body)
-  end
-
-  def crtype(&block)
-    TypeBuilder.with_injected_type_dsl(self) do
-      TypeBuilder.build(&block)
-    end
-  end
-
-  def json(&block)
-    crtype(&block).serialize_as(:json)
-  end
-
-  def method_added(method_name)
-    if @crystalize_next
-      attach_crystalized_method(method_name)
-      @crystalize_next = nil
-    end
-    super
-  end
-
-  def config
-    CrystalRuby.config
-  end
-
-  def attach_crystalized_method(method_name)
-    CrystalRuby.instantiate_crystal_ruby! unless CrystalRuby.instantiated?
-
-    function_body = instance_method(method_name).source.lines[
-      @crystalize_next[:raw] ? 2...-2 : 1...-1
-    ].join("\n")
-
-    fname = "#{name.downcase}_#{method_name}"
-    args, returns, block = @crystalize_next.values_at(:args, :returns, :block)
-    args ||= {}
-    @crystalize_next = nil
-    function = build_function(self, method_name, args, returns, function_body)
-    CrystalRuby.write_chunk(self, name: function[:name], body: function[:body]) do
-      extend FFI::Library
-      ffi_lib config.crystal_lib_dir / config.crystal_lib_name
-      attach_function method_name, fname, function[:ffi_types], function[:return_ffi_type]
-      if block
-        [singleton_class, self].each do |receiver|
-          receiver.prepend(Module.new do
-            define_method(method_name, &block)
-          end)
-        end
-      end
-    end
-
-    [singleton_class, self].each do |receiver|
-      receiver.prepend(Module.new do
-        define_method(method_name) do |*args|
-          CrystalRuby.build! unless CrystalRuby.compiled?
-          unless CrystalRuby.attached?
-            CrystalRuby.attach!
-            return send(method_name, *args) if block
-          end
-          args.each_with_index do |arg, i|
-            args[i] = function[:arg_maps][i][arg] if function[:arg_maps][i]
-          end
-          result = super(*args)
-          if function[:retval_map]
-            function[:retval_map][result]
-          else
-            result
-          end
-        end
-      end)
-    end
-  end
+  CR_COMPILE_MUX = Mutex.new
 
   module_function
 
-  def build_function(owner, name, args, returns, body)
+  def build_function(owner, lib_fn_name, name, args, returns, body)
+    log_debug(".build_function #{{ owner: owner, name: name, args: args, returns: returns, body: body[0..50] }}")
+
     arg_types = args.transform_values(&method(:build_type_map))
     return_type = build_type_map(returns)
-    function_body = Template.render(
-      Template::Function,
+    lib_fn_args = arg_types.map { |k, arg_type| "_#{k} : #{arg_type[:lib_type]}" }.join(",")
+    lib_fn_args += ", " unless lib_fn_args.empty?
+    lib_fn_arg_names = arg_types.map { |k, _arg_type| "_#{k}" }.join(",")
+    lib_fn_arg_names += ", " unless lib_fn_args.empty?
+
+    function_body = Template::Function.render(
       {
         module_name: owner.name,
-        lib_fn_name: "#{owner.name.downcase}_#{name}",
+        lib_fn_name: lib_fn_name,
         fn_name: name,
         fn_body: body,
+        callback_call: returns == :void ? "callback.call(thread_id)" : "callback.call(thread_id, converted)",
+        callback_type: return_type[:ffi_type] == :void ? "UInt32 -> Void" : " UInt32, #{return_type[:lib_type]} -> Void",
         fn_args: arg_types.map { |k, arg_type| "#{k} : #{arg_type[:crystal_type]}" }.join(","),
         fn_ret_type: return_type[:crystal_type],
-        lib_fn_args: arg_types.map { |k, arg_type| "_#{k}: #{arg_type[:lib_type]}" }.join(","),
+        lib_fn_args: lib_fn_args,
+        lib_fn_arg_names: lib_fn_arg_names,
         lib_fn_ret_type: return_type[:lib_type],
         convert_lib_args: arg_types.map do |k, arg_type|
           "#{k} = #{arg_type[:convert_lib_to_crystal_type]["_#{k}"]}"
@@ -137,7 +59,7 @@ module CrystalRuby
       retval_map: returns.is_a?(Types::TypeSerializer) ? ->(rv) { returns.prepare_retval(rv) } : nil,
       ffi_types: arg_types.map { |_k, arg_type| arg_type[:ffi_type] },
       arg_maps: arg_types.map { |_k, arg_type| arg_type[:mapper] },
-      return_ffi_type: return_type[:return_ffi_type]
+      ffi_ret_type: return_type[:ffi_ret_type]
     }
   end
 
@@ -148,7 +70,7 @@ module CrystalRuby
 
     {
       ffi_type: ffi_type(crystalruby_type),
-      return_ffi_type: ffi_type(crystalruby_type),
+      ffi_ret_type: ffi_type(crystalruby_type),
       crystal_type: crystal_type(crystalruby_type),
       lib_type: lib_type(crystalruby_type),
       error_value: error_value(crystalruby_type),
@@ -232,28 +154,12 @@ module CrystalRuby
       )
     end
 
-    attach_crystal_ruby_lib! if compiled?
-
     return if File.exist?(config.crystal_src_dir / "shard.yml")
 
     IO.write("#{config.crystal_src_dir}/shard.yml", <<~YAML)
       name: src
       version: 0.1.0
     YAML
-  end
-
-  def attach_crystal_ruby_lib!
-    extend FFI::Library
-    ffi_lib config.crystal_lib_dir / config.crystal_lib_name
-    attach_function "init!", :init, [:pointer], :void
-    send(:remove_const, :ErrorCallback) if defined?(ErrorCallback)
-    const_set(:ErrorCallback, FFI::Function.new(:void, %i[string string]) do |error_type, message|
-      error_type = error_type.to_sym
-      is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
-      error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
-      raise error_type.new(message)
-    end)
-    init!(ErrorCallback)
   end
 
   def self.instantiated?
@@ -297,26 +203,37 @@ module CrystalRuby
   end
 
   def self.build!
-    File.write config.crystal_codegen_dir_abs / "index.cr", Template.render(
-      Template::Index,
-      type_modules: type_modules,
-      requires: requires
-    )
-    if @compiled = CrystalRuby::Compilation.compile!(
-      verbose: config.verbose,
-      debug: config.debug
-    )
-      IO.write(digest_file_name, get_cr_src_files_digest)
-      attach_crystal_ruby_lib!
-    else
-      File.delete(digest_file_name) if File.exist?(digest_file_name)
-      raise "Error compiling crystal code"
+    log_debug(".build!")
+
+    CR_COMPILE_MUX.synchronize do
+      return if @compiled
+
+      File.write config.crystal_codegen_dir_abs / "index.cr", Template::Index.render(
+        type_modules: type_modules,
+        requires: requires
+      )
+      if @compiled = CrystalRuby::Compilation.compile!(
+        verbose: config.verbose,
+        debug: config.debug
+      )
+        IO.write(digest_file_name, get_cr_src_files_digest)
+      else
+        File.delete(digest_file_name) if File.exist?(digest_file_name)
+        raise "Error compiling crystal code"
+      end
     end
   end
 
   def self.attach!
+    log_debug(".attach!")
     @chunk_store.each do |function|
       function[:compile_callback]&.call
+    end
+    log_debug(".attach_crystal_ruby_lib. Single thread mode: #{config.single_thread_mode}")
+    if config.single_thread_mode
+      Reactor.init_single_thread_mode!
+    else
+      Reactor.start!
     end
     @attached = true
   end
@@ -342,19 +259,24 @@ module CrystalRuby
   end
 
   def self.write_chunk(owner, body:, name: Digest::MD5.hexdigest(body), &compile_callback)
+    log_debug(".write_chunk!")
+    chunk_store.delete_if { |chnk| chnk[:owner].name == owner.name && chnk[:name] == name }
     chunk_store << { owner: owner, name: name, body: body, compile_callback: compile_callback }
     FileUtils.mkdir_p(config.crystal_codegen_dir_abs)
     existing = Dir.glob("#{config.crystal_codegen_dir_abs}/**/*.cr")
     chunk_store.each do |function|
+      log_debug(".processing_chunk", function[0..60])
       owner_name = function[:owner].name
       FileUtils.mkdir_p(config.crystal_codegen_dir_abs / owner_name)
       function_data = function[:body]
       fname = function[:name]
       file_digest = Digest::MD5.hexdigest function_data
       filename = config.crystal_codegen_dir_abs / owner_name / "#{fname}_#{file_digest}.cr"
+
       unless existing.delete(filename.to_s)
-        @compiled = false
+        log_debug("Chunk invalidated", filename.to_s)
         @attached = false
+        @compiled = false
         File.write(filename, function_data)
       end
       existing.select do |f|

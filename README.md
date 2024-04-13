@@ -43,33 +43,45 @@ E.g.
 require 'crystalruby'
 require 'benchmark'
 
-module Fibonnaci
+module PrimeCounter
   crystalize [n: :int32] => :int32
-  def fib_cr(n)
-    a = 0
-    b = 1
-    n.times { a, b = b, a + b }
-    a
+  def count_primes_upto_cr(n)
+    (2..n).each.count do |i|
+      is_prime = true
+      (2..Math.sqrt(i).to_i).each do |j|
+        if i % j == 0
+          is_prime = false
+          break
+        end
+      end
+      is_prime
+    end
   end
 
   module_function
 
-  def fib_rb(n)
-    a = 0
-    b = 1
-    n.times { a, b = b, a + b }
-    a
+  def count_primes_upto_rb(n)
+    (2..n).each.count do |i|
+      is_prime = true
+      (2..Math.sqrt(i).to_i).each do |j|
+        if i % j == 0
+          is_prime = false
+          break
+        end
+      end
+      is_prime
+    end
   end
 end
 
-puts(Benchmark.realtime { 1_000_000.times { Fibonnaci.fib_rb(30) } })
-puts(Benchmark.realtime { 1_000_000.times { Fibonnaci.fib_cr(30) } })
-
+include PrimeCounter
+puts(Benchmark.realtime { count_primes_upto_rb(1000_000) })
+puts(Benchmark.realtime { count_primes_upto_cr(1000_000) })
 ```
 
 ```bash
-3.193121999996947 # Ruby
-0.29086600001028273 # Crystal
+2.8195170001126826 # Ruby
+0.3402599999681115 # Crystal
 ```
 
 _Note_: The first run of the Crystal code will be slower, as it needs to compile the code first. The subsequent runs will be much faster.
@@ -121,10 +133,10 @@ end
 ### Crystal Compatible
 
 Some Crystal syntax is not valid Ruby, for methods of this form, we need to
-define our functions using a :raw parameter.
+define our functions using a raw: true option
 
 ```ruby
-crystalize :raw, [a: :int, b: :int] => :int
+crystalize [a: :int, b: :int] => :int, raw: true
 def add(a, b)
   <<~CRYSTAL
     c = 0_u64
@@ -453,6 +465,51 @@ CrystalRuby.compile!
 
 Then you can run this file as part of your build step, to ensure all Crystal code is compiled ahead of time.
 
+## Concurrency
+
+While Ruby programs allow multi-threading, Crystal by default uses only a single thread, while utilising Fiber based cooperative-multitasking to allow for concurrent execution. This means that by default, Crystal libraries can not safely be invoked in parallel across multiple Ruby threads.
+
+To safely expose this behaviour, `crystalruby` implements a Reactor, which multiplexes all Ruby calls to Crystal across a single thread. This way you can safely use `crystalruby` in a multi-threaded Ruby environment.
+
+By default `crystalruby` methods are blocking/synchronous, this means that for blocking operations, a single crystalruby call can block the entire reactor.
+
+To allow you to benefit from Crystal's fiber based concurrency, you can use the `async` option on crystalized ruby methods. This allows several Ruby threads to invoke Crystal code simultaneously.
+
+E.g.
+
+```ruby
+module Sleeper
+  crystalize [] => :void
+  def sleep_sync
+    sleep 2
+  end
+
+  crystalize [] => :void, async: true
+  def sleep_async
+    sleep 2
+  end
+end
+```
+
+```ruby
+5.times.map{ Thread.new{ Sleeper.sleep_sync } }.each(&:join) # Will take 10 seconds
+5.times.map{ Thread.new{ Sleeper.sleep_async } }.each(&:join) # Will take 2 seconds (the sleeps are processed concurrently)
+```
+
+### Reactor performance
+
+There is a small amount of synchronization overhead to multiplexing calls across a single thread. Ad-hoc testing amounts this to be around 10 nanoseconds per call.
+For most use-cases this overhead is negligible, especially if the bulk of your CPU heavy task occurs exclusively in Crystal code. However, if you are invoking very fast Crystal code from Ruby in a tight loop (e.g. a simple 1 + 2)
+then the overhead of the reactor can become significant.
+
+In this case you can use the `crystalruby` in a single-threaded mode to avoid the reactor overhead and greatly increase performance, with the caveat that _all_ calls to Crystal must occur from a single thread. If your Ruby program is already single-threaded this is not a problem.
+
+```ruby
+CrystalRuby.configure do |config|
+  config.single_thread_mode = true
+end
+```
+
 ## Troubleshooting
 
 The logic to detect when to JIT recompile is not robust and can end up in an inconsistent state. To remedy this it is useful to clear out all generated assets and build from scratch.
@@ -517,7 +574,7 @@ crystal_codegen_dir: "generated"
 debug: true
 ```
 
-Alternatively, these can be set programmatically:
+Alternatively, these can be set programmatically, e.g:
 
 ```ruby
 CrystalRuby.configure do |config|
@@ -527,6 +584,9 @@ CrystalRuby.configure do |config|
   config.crystal_lib_name = "crlib"
   config.crystal_codegen_dir = "generated"
   config.debug = true
+  config.verbose = false
+  config.colorize_log_output = false
+  config.log_level = :info
 end
 ```
 
