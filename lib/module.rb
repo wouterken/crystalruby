@@ -1,3 +1,3 @@
 class Module
-  prepend CrystalRuby
+  prepend CrystalRuby::Adapter
 end

@@ -1,29 +1,31 @@
 require "open3"
 require "tmpdir"
+require "shellwords"
 
 module CrystalRuby
   module Compilation
     def self.compile!(
-      src: config.crystal_src_dir_abs / config.crystal_main_file,
-      lib: config.crystal_lib_dir_abs / config.crystal_lib_name,
-      verbose: config.verbose,
-      debug: config.debug
+      src: CrystalRuby.config.crystal_src_dir_abs / CrystalRuby.config.crystal_main_file,
+      lib: CrystalRuby.config.crystal_lib_dir_abs / CrystalRuby.config.crystal_lib_name,
+      verbose: CrystalRuby.config.verbose,
+      debug: CrystalRuby.config.debug
     )
-      Dir.chdir(config.crystal_src_dir_abs) do
+      Dir.chdir(CrystalRuby.config.crystal_src_dir_abs) do
         compile_command = compile_command!(verbose: verbose, debug: debug, lib: lib, src: src)
         link_command = link_cmd!(verbose: verbose, lib: lib, src: src)
 
-        puts "[crystalruby] Compiling Crystal code: #{compile_command}" if verbose
+        CrystalRuby.log_debug "Compiling Crystal code: #{compile_command}"
         unless system(compile_command)
-          puts "Failed to build Crystal object file."
+          CrystalRuby.log_error "Failed to build Crystal object file."
           return false
         end
 
-        puts "[crystalruby] Linking Crystal code: #{link_command}" if verbose
+        CrystalRuby.log_debug "Linking Crystal code: #{link_command}"
         unless system(link_command)
-          puts "Failed to link Crystal library."
+          CrystalRuby.log_error "Failed to link Crystal library."
           return false
         end
+        CrystalRuby.log_info "Compilation successful"
       end
 
       true
@@ -34,6 +36,9 @@ module CrystalRuby
         verbose_flag = verbose ? "--verbose" : ""
         debug_flag = debug ? "" : "--release --no-debug"
         redirect_output = " > /dev/null " unless verbose
+
+        src = Shellwords.escape(src)
+        lib = Shellwords.escape(lib)
 
         %(crystal build #{verbose_flag} #{debug_flag} --cross-compile -o #{lib} #{src}#{redirect_output})
       end
@@ -48,11 +53,26 @@ module CrystalRuby
         result = nil
 
         Dir.mktmpdir do |tmp|
-          output, status = Open3.capture2("crystal build --verbose #{src} -o #{Pathname.new(tmp) / "main"}")
-          unless status.success?
-            puts "Failed to compile the Crystal code."
-            exit 1
+          CrystalRuby.log_debug "Building link command"
+          src = Shellwords.escape(src)
+          lib_dir = Shellwords.escape(CrystalRuby.config.crystal_src_dir_abs / "lib")
+          escaped_output_path = Shellwords.escape(Pathname.new(tmp) / "main")
+
+          command = "timeout -k 2s 2s bash -c \"export CRYSTAL_PATH=$(crystal env CRYSTAL_PATH):#{lib_dir} && crystal build --verbose #{src} -o #{escaped_output_path} \""
+
+          output = ""
+          pid = nil
+
+          CrystalRuby.log_debug "Running command: #{command}"
+
+          Open3.popen2e(command) do |_stdin, stdout_and_stderr, _wait_thr|
+            while line = stdout_and_stderr.gets
+              puts line if verbose
+              output += line # Capture the output
+            end
           end
+
+          CrystalRuby.log_debug "Parsing link command"
 
           # Parse the output to find the last invocation of the C compiler, which is likely the linking stage
           # and strip off the targets that the crystal compiler added.
@@ -70,6 +90,8 @@ module CrystalRuby
 
         result
       end
+    rescue StandardError
+      ""
     end
   end
 end

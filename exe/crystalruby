@@ -14,6 +14,8 @@ def init
     crystal_main_file: "main.cr"
     crystal_lib_name: "crlib"
     crystal_codegen_dir: "generated"
+    log_level: "info"
+    single_thread_mode: false
     debug: true
   YAML
 

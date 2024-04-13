@@ -52,14 +52,19 @@ module CrystalRuby
       string: '"".to_unsafe' # String type
     }
 
-    C_TYPE_MAP = CRYSTAL_TYPE_MAP.merge({
-                                          string: "UInt8*"
-                                        })
+    C_TYPE_MAP = CRYSTAL_TYPE_MAP.merge(
+      {
+        string: "Pointer(UInt8)"
+      }
+    )
 
     C_TYPE_CONVERSIONS = {
       string: {
         from: "String.new(%s)",
         to: "%s.to_unsafe"
+      },
+      void: {
+        to: "nil"
       }
     }
   end
