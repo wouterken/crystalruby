@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-require "bundler/setup"
 require "crystalruby"
 require "fileutils"
 
@@ -9,10 +8,7 @@ def init
   # Define some dummy content for the YAML file
   yaml_content = <<~YAML
     # crystalruby configuration file
-    crystal_src_dir: "./crystalruby/src"
-    crystal_lib_dir: "./crystalruby/lib"
-    crystal_main_file: "main.cr"
-    crystal_lib_name: "crlib"
+    crystal_src_dir: "./crystalruby"
     crystal_codegen_dir: "generated"
     log_level: "info"
     single_thread_mode: false
@@ -25,23 +21,25 @@ def init
 end
 
 def install
-  Dir.chdir("#{CrystalRuby.config.crystal_src_dir}") do
-    if system("shards update")
-      puts "Shards installed successfully."
-    else
-      puts "Error installing shards."
+  Dir["#{CrystalRuby.config.crystal_src_dir}/**/src"].each do |src_dir|
+    Dir.chdir(src_dir) do
+      if system("shards check") || system("shards update")
+        puts "Shards installed successfully."
+      else
+        puts "Error installing shards."
+      end
     end
   end
-  clean
 end
 
 def clean
-  # This is a stub for the clear command
-  FileUtils.rm_rf("#{CrystalRuby.config.crystal_src_dir}/generated")
+  Dir["#{CrystalRuby.config.crystal_src_dir}/**/src/generated"].each do |codegen_dir|
+    FileUtils.rm_rf(codegen_dir)
+  end
 end
 
 def build
-  # This is a stub for the build command
+  # TODO: Iterate through all generated libs and build
   puts "Build command is not implemented yet."
 end
 

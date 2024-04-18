@@ -11,4 +11,6 @@ gem "minitest", "~> 5.16"
 
 gem "rubocop", "~> 1.21"
 
-gem "pry-byebug"
+gem "get_process_mem"
+
+gem "debug", ">= 1.0.0"

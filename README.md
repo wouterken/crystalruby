@@ -510,6 +510,33 @@ CrystalRuby.configure do |config|
 end
 ```
 
+## Live Reloading
+
+`crystalruby` supports live reloading of Crystal code. It will intelligently
+recompile Crystal code only when it detects changes to the embedded function or block bodies. This allows you to iterate quickly on your Crystal code without having to restart your Ruby process in live-reloading environments like Rails.
+
+## Multi-library support
+
+Large Crystal projects are known to have long compile times. To mitigate this, `crystalruby` supports splitting your Crystal code into multiple libraries. This allows you to only recompile the library that has changed, rather than the entire project.
+To indicate which library a piece of embedded Crystal code belongs to, you can use the `library` option in the `crystalize` and `crystal` methods.
+If the "lib" option is not provided, the code will be compiled into the default library (simply named `crystalruby`).
+
+```ruby
+module Foo
+  crystalize lib: "foo"
+  def bar
+    puts "Hello from Foo"
+  end
+
+  crystal lib: "foo" do
+    REDIS = Redis.new
+  end
+end
+```
+
+Naturally Crystal code must be in the same library to interact directly.
+Interaction across multiple libraries can be coordinated via Ruby code.
+
 ## Troubleshooting
 
 The logic to detect when to JIT recompile is not robust and can end up in an inconsistent state. To remedy this it is useful to clear out all generated assets and build from scratch.
@@ -566,8 +593,8 @@ crystalruby init
 ```
 
 ```yaml
-crystal_src_dir: "./crystalruby/src"
-crystal_lib_dir: "./crystalruby/lib"
+crystal_src_dir: "./crystalruby"
+crystal_codegen_dir: "generated"
 crystal_main_file: "main.cr"
 crystal_lib_name: "crlib"
 crystal_codegen_dir: "generated"
@@ -578,10 +605,7 @@ Alternatively, these can be set programmatically, e.g:
 
 ```ruby
 CrystalRuby.configure do |config|
-  config.crystal_src_dir = "./crystalruby/src"
-  config.crystal_lib_dir = "./crystalruby/lib"
-  config.crystal_main_file = "main.cr"
-  config.crystal_lib_name = "crlib"
+  config.crystal_src_dir = "./crystalruby"
   config.crystal_codegen_dir = "generated"
   config.debug = true
   config.verbose = false

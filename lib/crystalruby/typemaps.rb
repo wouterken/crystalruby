@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CrystalRuby
   module Typemaps
     CRYSTAL_TYPE_MAP = {
@@ -66,6 +68,90 @@ module CrystalRuby
       void: {
         to: "nil"
       }
-    }
+      }.tap do |hash|
+        hash.define_singleton_method(:convert) do |type, dir, expr|
+          if hash.key?(type)
+            conversion_string = hash[type][dir]
+            conversion_string =~ /%/ ? conversion_string % expr : conversion_string
+          else
+            expr
+          end
+        end
+      end
+
+    def build_type_map(crystalruby_type)
+      {
+        ffi_type: ffi_type(crystalruby_type),
+        ffi_ret_type: ffi_type(crystalruby_type),
+        crystal_type: crystal_type(crystalruby_type),
+        lib_type: lib_type(crystalruby_type),
+        error_value: error_value(crystalruby_type),
+        arg_mapper: if crystalruby_type.is_a?(Types::TypeSerializer)
+                      lambda { |arg|
+                        crystalruby_type.prepare_argument(arg)
+                      }
+                    end,
+        retval_mapper: if crystalruby_type.is_a?(Types::TypeSerializer)
+                         lambda { |arg|
+                           crystalruby_type.prepare_retval(arg)
+                         }
+                       end,
+        convert_crystal_to_lib_type: ->(expr) { convert_crystal_to_lib_type(expr, crystalruby_type) },
+        convert_lib_to_crystal_type: ->(expr) { convert_lib_to_crystal_type(expr, crystalruby_type) }
+      }
+    end
+
+    def ffi_type(type)
+      case type
+      when Symbol then type
+      when Types::TypeSerializer then type.ffi_type
+      end
+    end
+
+    def lib_type(type)
+      if type.is_a?(Types::TypeSerializer)
+        type.lib_type
+      else
+        C_TYPE_MAP.fetch(type)
+      end
+    rescue StandardError
+      raise "Unsupported type #{type}"
+    end
+
+    def error_value(type)
+      if type.is_a?(Types::TypeSerializer)
+        type.error_value
+      else
+        ERROR_VALUE.fetch(type)
+      end
+    rescue StandardError
+      raise "Unsupported type #{type}"
+    end
+
+    def crystal_type(type)
+      if type.is_a?(Types::TypeSerializer)
+        type.crystal_type
+      else
+        CRYSTAL_TYPE_MAP.fetch(type)
+      end
+    rescue StandardError
+      raise "Unsupported type #{type}"
+    end
+
+    def convert_lib_to_crystal_type(expr, type)
+      if type.is_a?(Types::TypeSerializer)
+        type.lib_to_crystal_type_expr(expr)
+      else
+        C_TYPE_CONVERSIONS.convert(type, :from, expr)
+      end
+    end
+
+    def convert_crystal_to_lib_type(expr, type)
+      if type.is_a?(Types::TypeSerializer)
+        type.crystal_to_lib_type_expr(expr)
+      else
+        C_TYPE_CONVERSIONS.convert(type, :to, expr)
+      end
+    end
   end
 end
