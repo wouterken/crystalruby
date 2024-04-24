@@ -1,8 +1,14 @@
 module CrystalRuby
+  # The Reactor represents a singleton Thread
+  # responsible for running all Ruby/crystal interop code.
+  # Crystal's Fiber scheduler and GC assumes all code is run on a single thread.
+  # This class is responsible for multiplexing Ruby and Crystal code on a single thread,
+  # to allow safe invocation of Crystal code from across any number of Ruby threads.
+  # Functions annotated with async: true, are executed using callbacks to allow these to be multi-plexed in a non-blocking manner.
+
   module Reactor
     module_function
 
-    class ReactorStoppedException < StandardError; end
     class SingleThreadViolation < StandardError; end
 
     REACTOR_QUEUE = Queue.new
@@ -40,6 +46,8 @@ module CrystalRuby
       is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
       error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
       tid = tid.zero? ? Reactor.current_thread_id : tid
+      raise error_type.new(message) unless THREAD_MAP.key?(tid)
+
       THREAD_MAP[tid][:error] = error_type.new(message)
       THREAD_MAP[tid][:result] = nil
       THREAD_MAP[tid][:cond].signal
@@ -57,15 +65,26 @@ module CrystalRuby
       THREAD_MAP[thread_id][:result]
     end
 
+    def start!
+      @main_loop ||= Thread.new do
+        CrystalRuby.log_debug("Starting reactor")
+        CrystalRuby.log_debug("CrystalRuby initialized")
+        loop do
+          REACTOR_QUEUE.pop[]
+        end
+      rescue StandardError => e
+        CrystalRuby.log_error "Error: #{e}"
+        CrystalRuby.log_error e.backtrace
+      end
+    end
+
     def thread_id
       Thread.current.object_id
     end
 
-    def yield!(time: 0)
-      Thread.new do
-        sleep time
-        schedule_work!(Reactor, :yield, nil, async: false, blocking: false)
-      end
+    def yield!(lib: nil, time: 0.0)
+      schedule_work!(lib, :yield, nil, async: false, blocking: false, lib: lib) if running? && lib
+      nil
     end
 
     def current_thread_id=(val)
@@ -76,9 +95,7 @@ module CrystalRuby
       @current_thread_id
     end
 
-    def schedule_work!(receiver, op_name, *args, return_type, blocking: true, async: true)
-      raise ReactorStoppedException, "Reactor has been terminated, no new work can be scheduled" if @stopped
-
+    def schedule_work!(receiver, op_name, *args, return_type, blocking: true, async: true, lib: nil)
       if @single_thread_mode
         unless Thread.current.object_id == @main_thread_id
           raise SingleThreadViolation,
@@ -99,7 +116,7 @@ module CrystalRuby
                 op_name, *args, tvars[:thread_id],
                 CALLBACKS_MAP[return_type]
               )
-              yield!(time: 0)
+              yield!(lib: lib, time: 0)
             }
           when blocking
             lambda {
@@ -116,7 +133,7 @@ module CrystalRuby
           else
             lambda {
               outstanding_jobs = receiver.send(op_name, *args)
-              yield!(time: 0.01) unless outstanding_jobs.zero?
+              yield!(lib: lib, time: 0) unless outstanding_jobs == 0
             }
           end
         )
@@ -124,61 +141,15 @@ module CrystalRuby
       end
     end
 
-    def init_single_thread_mode!
-      @single_thread_mode = true
-      @main_thread_id = Thread.current.object_id
-      init_crystal_ruby!
-    end
-
-    def init_crystal_ruby!
-      attach_lib!
-      init(ERROR_CALLBACK)
-    end
-
-    def attach_lib!
-      CrystalRuby.log_debug("Attaching lib")
-      extend FFI::Library
-      ffi_lib CrystalRuby.config.crystal_lib_dir / CrystalRuby.config.crystal_lib_name
-      attach_function :init, [:pointer], :void
-      attach_function :stop, [], :void
-      attach_function :yield, %i[], :int
-    end
-
-    def stop!
-      CrystalRuby.log_debug("Stopping reactor")
-      @stopped = true
-      sleep 1
-      @main_loop&.kill
-      @main_loop = nil
-      CrystalRuby.log_debug("Reactor stopped")
-    end
-
     def running?
       @main_loop&.alive?
     end
 
-    def start!
-      @main_loop ||= begin
-        attach_lib!
-        Thread.new do
-          CrystalRuby.log_debug("Starting reactor")
-          init(ERROR_CALLBACK)
-          CrystalRuby.log_debug("CrystalRuby initialized")
-          loop do
-            REACTOR_QUEUE.pop[]
-            break if @stopped
-          end
-          stop
-          CrystalRuby.log_debug("Stopping reactor")
-        rescue StandardError => e
-          puts "Error: #{e}"
-          puts e.backtrace
-        end
+    def init_single_thread_mode!
+      @single_thread_mode ||= begin
+        @main_thread_id = Thread.current.object_id
+        true
       end
-    end
-
-    at_exit do
-      @stopped = true
     end
   end
 end

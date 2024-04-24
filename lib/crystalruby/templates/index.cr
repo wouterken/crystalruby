@@ -1,13 +1,15 @@
-alias ErrorCallback = (Pointer(UInt8), Pointer(UInt8), UInt32 -> Void)
-
-ARGV1 = "crystalruby"
-CALLBACK_MUX = Mutex.new
-
 module CrystalRuby
+
+  ARGV1 = "crystalruby"
+  CALLBACK_MUX = Mutex.new
+
+  alias ErrorCallback = (Pointer(UInt8), Pointer(UInt8), UInt32 -> Void)
+
   # Initializing Crystal Ruby invokes init on the Crystal garbage collector.
   # We need to be sure to only do this once.
   @@initialized = false
 
+  @@libname = "crystalruby"
   # Our Ruby <-> Crystal Reactor uses Fibers, with callbacks to allow
   # multiple concurrent Crystal operations to be queued
   @@callbacks = [] of Proc(Nil)
@@ -25,13 +27,13 @@ module CrystalRuby
   # 1. Initialize the Crystal garbage collector
   # 2. Set the error callback
   # 3. Call the Crystal main function
-  def self.init(error_callback : ErrorCallback)
+  def self.init(libname : Pointer(UInt8), error_callback : ErrorCallback)
     return if @@initialized
     @@initialized = true
-    GC.init
     argv_ptr = ARGV1.to_unsafe
-    Crystal.main(0, pointerof(argv_ptr))
+    Crystal.main_user_code(0, pointerof(argv_ptr))
     @@error_callback = error_callback
+    @@libname = String.new(libname)
   end
 
   # Explicit error handling (triggers exception within Ruby on the same thread)
@@ -70,6 +72,10 @@ module CrystalRuby
     @@callbacks.size
   end
 
+  def self.libname : String
+    @@libname
+  end
+
   # Flush all callbacks
   def self.flush_callbacks : Int32
     CALLBACK_MUX.synchronize do
@@ -84,12 +90,28 @@ module CrystalRuby
 end
 
 # Initialize CrystalRuby
-fun init(cb : ErrorCallback): Void
-  CrystalRuby.init(cb)
+fun init(libname : Pointer(UInt8), cb : CrystalRuby::ErrorCallback): Void
+  CrystalRuby.init(libname, cb)
 end
 
-fun stop(): Void
-  GC.disable
+fun stop : Void
+  LibGC.deinit()
+end
+
+@[Link("gc")]
+lib LibGC
+  $stackbottom = GC_stackbottom : Void*
+  fun deinit = GC_deinit
+end
+
+module GC
+  def self.current_thread_stack_bottom
+    {Pointer(Void).null, LibGC.stackbottom}
+  end
+
+  def self.set_stackbottom(stack_bottom : Void*)
+    LibGC.stackbottom = stack_bottom
+  end
 end
 
 # Yield to the Crystal scheduler from Ruby
@@ -99,7 +121,6 @@ end
 # once this figure reaches 0).
 fun yield() : Int32
   if CrystalRuby.count_callbacks == 0
-
     Fiber.yield
 
     # TODO: We should apply backpressure here to prevent busy waiting if the number of outstanding tasks is not decreasing.

@@ -1,9 +1,10 @@
-require 'json'
+# frozen_string_literal: true
+
+require "json"
 
 module CrystalRuby::Types
   class TypeSerializer
     class JSON < TypeSerializer
-
       def lib_type
         "UInt8*"
       end

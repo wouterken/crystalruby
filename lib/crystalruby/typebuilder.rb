@@ -19,6 +19,7 @@ module CrystalRuby
           nil
         end
         restores << [context, method_name, old_method]
+        context.singleton_class.undef_method(method_name) if old_method
         context.define_singleton_method(method_name) do |*args|
           Types.send(method_name, *args)
         end
@@ -26,6 +27,7 @@ module CrystalRuby
       yield
     ensure
       restores.each do |context, method_name, old_method|
+        context.singleton_class.undef_method(method_name)
         context.define_singleton_method(method_name, old_method) if old_method
       end
     end
