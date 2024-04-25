@@ -36,6 +36,9 @@ def clean
   Dir["#{CrystalRuby.config.crystal_src_dir}/**/src/generated"].each do |codegen_dir|
     FileUtils.rm_rf(codegen_dir)
   end
+  Dir["#{CrystalRuby.config.crystal_src_dir}/**/lib"].each do |lib_dir|
+    FileUtils.rm_rf(lib_dir)
+  end
 end
 
 def build

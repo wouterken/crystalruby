@@ -43,7 +43,6 @@ module CrystalRuby
       error_type = error_type.to_sym
       is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
       error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
-      tid = tid.zero? ? Reactor.current_thread_id : tid
       raise error_type.new(message) unless THREAD_MAP.key?(tid)
 
       THREAD_MAP[tid][:error] = error_type.new(message)

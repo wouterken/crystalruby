@@ -8,7 +8,7 @@ module CrystalRuby
     CR_COMPILE_MUX = Mutex.new
     CR_ATTACH_MUX = Mutex.new
 
-    attr_accessor :name, :methods, :chunks, :root_dir, :lib_dir, :src_dir, :codegen_dir, :attachments, :reactor
+    attr_accessor :name, :methods, :chunks, :root_dir, :lib_dir, :src_dir, :codegen_dir, :reactor
 
     @libs_by_name = {}
 
@@ -30,7 +30,6 @@ module CrystalRuby
       self.name = name
       self.methods = {}
       self.chunks = []
-      self.attachments = Hash.new(false)
       initialize_library!
     end
 
@@ -59,7 +58,7 @@ module CrystalRuby
     # and triggers the generation of the crystal code. (See write_chunk)
     def crystalize_method(method, args, returns, function_body, async, &block)
       CR_ATTACH_MUX.synchronize do
-        attachments.delete(method.owner)
+        methods.each_value(&:unattach!)
         method_key = "#{method.owner.name}/#{method.name}"
         methods[method_key] = Function.new(
           method: method,
@@ -98,8 +97,7 @@ module CrystalRuby
     end
 
     def compiled?
-      index_contents = self.index_contents
-      File.exist?(lib_file) && chunks.all? do |chunk|
+      @compiled ||= File.exist?(lib_file) && chunks.all? do |chunk|
         chunk_data = chunk[:body]
         file_digest = Digest::MD5.hexdigest chunk_data
         fname = chunk[:chunk_name]
@@ -111,10 +109,6 @@ module CrystalRuby
       IO.read(codegen_dir / "index.cr")
     rescue StandardError
       ""
-    end
-
-    def attached?(owner)
-      attachments[owner]
     end
 
     def register_type!(type)
@@ -181,7 +175,8 @@ module CrystalRuby
         filename = (codegen_dir / module_name / "#{chunk_name}_#{file_digest}.cr").to_s
 
         unless existing.delete(filename)
-          @attached = false
+          methods.each_value(&:unattach!)
+          @compiled = false
           FileUtils.mkdir_p(codegen_dir / module_name)
           File.write(filename, body)
         end

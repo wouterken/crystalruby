@@ -6,7 +6,7 @@ module CrystalRuby
     include Typemaps
     include Config
 
-    attr_accessor :owner, :method_name, :args, :returns, :function_body, :lib, :async, :block
+    attr_accessor :owner, :method_name, :args, :returns, :function_body, :lib, :async, :block, :attached
 
     def initialize(method:, args:, returns:, function_body:, lib:, async: false, &block)
       self.owner = method.owner
@@ -17,6 +17,7 @@ module CrystalRuby
       self.lib = lib
       self.async = async
       self.block = block
+      self.attached = false
     end
 
     # This is where we write/overwrite the class and instance methods
@@ -34,7 +35,7 @@ module CrystalRuby
             lib.build!
             return send(func.method_name, *args)
           end
-          unless lib.attached?(func.owner)
+          unless func.attached?
             should_reenter = func.attach_ffi_lib_functions!
             return send(func.method_name, *args) if should_reenter
           end
@@ -62,10 +63,7 @@ module CrystalRuby
     def attach_ffi_lib_functions!
       should_reenter = unwrapped?
       lib_file = lib.lib_file
-      lib.attachments[owner] = true
-      lib.methods.each_value do |method|
-        method.attach_ffi_func!
-      end
+      lib.methods.each_value(&:attach_ffi_func!)
       lib.singleton_class.class_eval do
         extend FFI::Library
         ffi_lib lib_file
@@ -114,7 +112,7 @@ module CrystalRuby
       owner.attach_function ffi_name, argtypes, rettype, blocking: true
       around_wrapper_block = block
       method_name = self.method_name
-
+      @attached = true
       return unless around_wrapper_block
 
       @around_wrapper ||= begin
@@ -134,6 +132,14 @@ module CrystalRuby
 
     def unwrapped?
       block && !@around_wrapper
+    end
+
+    def attached?
+      @attached
+    end
+
+    def unattach!
+      @attached = false
     end
 
     def ffi_name
