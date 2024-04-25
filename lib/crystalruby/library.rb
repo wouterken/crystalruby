@@ -34,9 +34,7 @@ module CrystalRuby
       initialize_library!
     end
 
-    # This method is used to
-    # bootstrap a library filesystem,
-    # and generate a top level index.cr and shard file if
+    # Bootstraps the library filesystem and generates top level index.cr and shard files if
     # these do not already exist.
     def initialize_library!
       @root_dir, @lib_dir, @src_dir, @codegen_dir = [
@@ -57,8 +55,8 @@ module CrystalRuby
       YAML
     end
 
-    # This is where we instantiate the crystalized method as a CrystalRuby::Function
-    # and trigger the generation of the crystal code.
+    # Generates and stores a reference to a new CrystalRuby::Function
+    # and triggers the generation of the crystal code. (See write_chunk)
     def crystalize_method(method, args, returns, function_body, async, &block)
       CR_ATTACH_MUX.synchronize do
         attachments.delete(method.owner)

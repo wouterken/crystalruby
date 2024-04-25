@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CrystalRuby::Types
   Array = Type.new(
     :Array,
@@ -6,9 +8,8 @@ module CrystalRuby::Types
 
   def self.Array(type)
     Type.validate!(type)
-    Type.new("Array", inner_types: [type], accept_if: [::Array]
-    ) do |a|
-      a.map!{|v| type.interpret!(v) }
+    Type.new("Array", inner_types: [type], accept_if: [::Array]) do |a|
+      a.map! { |v| type.interpret!(v) }
     end
   end
 end

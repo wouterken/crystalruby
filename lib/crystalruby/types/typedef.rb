@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "type_serializer"
 
 module CrystalRuby
@@ -5,7 +7,7 @@ module CrystalRuby
     class Typedef; end
 
     def self.Typedef(type)
-      return type if type.kind_of?(Class) && type < Typedef
+      return type if type.is_a?(Class) && type < Typedef
 
       Class.new(Typedef) do
         define_singleton_method(:union_types) do

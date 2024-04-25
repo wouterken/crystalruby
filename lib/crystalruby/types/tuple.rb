@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CrystalRuby::Types
   Tuple = Type.new(
     :Tuple,
@@ -9,7 +11,7 @@ module CrystalRuby::Types
       Type.validate!(value_type)
     end
     Type.new("Tuple", inner_types: types, accept_if: [::Array]) do |a|
-      a.map!.with_index{|v, i| self.inner_types[i].interpret!(v) }
+      a.map!.with_index { |v, i| inner_types[i].interpret!(v) }
     end
   end
 end

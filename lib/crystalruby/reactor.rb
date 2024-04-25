@@ -1,10 +1,8 @@
 module CrystalRuby
-  # The Reactor represents a singleton Thread
-  # responsible for running all Ruby/crystal interop code.
-  # Crystal's Fiber scheduler and GC assumes all code is run on a single thread.
-  # This class is responsible for multiplexing Ruby and Crystal code on a single thread,
-  # to allow safe invocation of Crystal code from across any number of Ruby threads.
-  # Functions annotated with async: true, are executed using callbacks to allow these to be multi-plexed in a non-blocking manner.
+  # The Reactor represents a singleton Thread responsible for running all Ruby/crystal interop code.
+  # Crystal's Fiber scheduler and GC assume all code is run on a single thread.
+  # This class is responsible for multiplexing Ruby and Crystal code on a single thread.
+  # Functions annotated with async: true, are executed using callbacks to allow these to be interleaved without blocking.
 
   module Reactor
     module_function

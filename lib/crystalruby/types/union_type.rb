@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CrystalRuby
   module Types
     class UnionType < Type
@@ -26,12 +28,12 @@ module CrystalRuby
 
       def interpret!(raw)
         union_types.each do |type|
-          if type.interprets?(raw)
-            begin
-              return type.interpret!(raw)
-            rescue
-              # Pass
-            end
+          next unless type.interprets?(raw)
+
+          begin
+            return type.interpret!(raw)
+          rescue StandardError
+            # Pass
           end
         end
         raise "Invalid deserialized value #{raw} for type #{inspect}"

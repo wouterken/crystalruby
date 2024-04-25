@@ -22,7 +22,7 @@ module CrystalRuby
     # This is where we write/overwrite the class and instance methods
     # with their crystalized equivalents.
     # We also perform JIT compilation and JIT attachment of the FFI functions.
-    # Crystalized methods work in a live-reloading manner environment.
+    # Crystalized methods can be redefined without restarting, if running in a live-reloading environment.
     # If they are redefined with a different function body, the new function body
     # will result in a new digest and the FFI function will be recompiled and reattached.
     def define_crystalized_methods!(lib)
@@ -38,8 +38,8 @@ module CrystalRuby
             should_reenter = func.attach_ffi_lib_functions!
             return send(func.method_name, *args) if should_reenter
           end
-          # All crystalruby functions are executed on the reactor to ensure
-          # all Crystal interop is executed from the same thread. (Needed to make GC and Fiber scheduler happy)
+          # All crystalruby functions are executed on the reactor to ensure Crystal/Ruby interop code is executed
+          # from a single same thread. (Needed to make GC and Fiber scheduler happy)
           # Type mapping (if required) is applied on arguments and on return values.
           func.map_retval(
             Reactor.schedule_work!(
@@ -58,7 +58,7 @@ module CrystalRuby
     # This is where we attach the top-level FFI functions of the shared object
     # to our library (yield and init) needed for successful operation of the reactor.
     # We also initialize the shared object (needed to start the GC) and
-    # start the reactor unless we are in single-thread mode.
+    # start the reactor, unless we are in single-thread mode.
     def attach_ffi_lib_functions!
       should_reenter = unwrapped?
       lib_file = lib.lib_file
@@ -86,8 +86,8 @@ module CrystalRuby
       should_reenter
     end
 
-    # This is where we attach the crystalized FFI functions to their related
-    # Ruby modules and classes. If a wrapper block has been passed to the crystalize function,
+    # Attaches the crystalized FFI functions to their related Ruby modules and classes.
+    # If a wrapper block has been passed to the crystalize function,
     # then the we also wrap the crystalized function using a prepended Module.
     def attach_ffi_func!
       argtypes = ffi_types
