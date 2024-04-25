@@ -81,7 +81,7 @@ module CrystalRuby
     end
 
     def lib_file
-      lib_dir / "#{name}_#{digest}"
+      lib_dir / FFI::LibraryPath.new("#{name}#{config.debug ? "-debug" : ""}", abi_number: digest).to_s
     end
 
     def shard_file
@@ -168,15 +168,20 @@ module CrystalRuby
       chunks.delete_if { |chnk| chnk[:module_name] == module_name && chnk[:chunk_name] == chunk_name }
       chunks << { module_name: module_name, chunk_name: chunk_name, body: body }
       existing = Dir.glob(codegen_dir / "**/*.cr")
+
+      current_index_contents = index_contents
       chunks.each do |chunk|
         module_name, chunk_name, body = chunk.values_at(:module_name, :chunk_name, :body)
 
         file_digest = Digest::MD5.hexdigest body
         filename = (codegen_dir / module_name / "#{chunk_name}_#{file_digest}.cr").to_s
 
-        unless existing.delete(filename)
+        unless current_index_contents.include?("#{module_name}/#{chunk_name}_#{file_digest}.cr")
           methods.each_value(&:unattach!)
           @compiled = false
+        end
+
+        unless existing.delete(filename)
           FileUtils.mkdir_p(codegen_dir / module_name)
           File.write(filename, body)
         end

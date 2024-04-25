@@ -501,7 +501,7 @@ end
 
 ### Reactor performance
 
-There is a small amount of synchronization overhead to multiplexing calls across a single thread. Ad-hoc testing on a fast machine amounts this to be within the order of 10 nanoseconds per call.
+There is a small amount of synchronization overhead to multiplexing calls across a single thread. Ad-hoc testing on a fast machine amounts this to be within the order of 10 microseconds per call.
 For most use-cases this overhead is negligible, especially if the bulk of your CPU heavy task occurs exclusively in Crystal code. However, if you are invoking very fast Crystal code from Ruby in a tight loop (e.g. a simple 1 + 2)
 then the overhead of the reactor can become significant.
 
@@ -520,7 +520,7 @@ recompile Crystal code only when it detects changes to the embedded function or 
 
 ## Multi-library support
 
-Large Crystal projects are known to have long compile times. To mitigate this, `crystalruby` supports splitting your Crystal code into multiple libraries. This allows you to only recompile any libraries that have changed, rather than all crystalcode within the entire project.
+Large Crystal projects are known to have long compile times. To mitigate this, `crystalruby` supports splitting your Crystal code into multiple libraries. This allows you to only recompile any libraries that have changed, rather than all crystal code within the project.
 To indicate which library a piece of embedded Crystal code belongs to, you can use the `lib` option in the `crystalize` and `crystal` methods.
 If the `lib` option is not provided, the code will be compiled into the default library (simply named `crystalruby`).
 

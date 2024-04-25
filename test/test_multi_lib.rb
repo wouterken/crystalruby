@@ -6,12 +6,12 @@ class TestMultiLib < Minitest::Test
   def test_two_libs_one_module
     Object.const_set(:AdderLib, Module.new {})
     AdderLib.class_eval do
-      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder-lib"
+      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder"
       def add(a, b)
         a + b
       end
 
-      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder-lib-2"
+      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder-2"
       def add_v2(a, b)
         a + b
       end
@@ -24,12 +24,12 @@ class TestMultiLib < Minitest::Test
     Object.const_set(:MathLib, Module.new {})
 
     MathLib.class_eval do
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-lib"
+      crystalize [a: :int, b: :int] => :int, async: true, lib: "math"
       def add(a, b)
         a + b
       end
 
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-lib-2"
+      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-2"
       def add_v2(a, b)
         a + b
       end
