@@ -1,13 +1,17 @@
 module CrystalRuby
+  require 'json'
   # The Reactor represents a singleton Thread responsible for running all Ruby/crystal interop code.
   # Crystal's Fiber scheduler and GC assume all code is run on a single thread.
-  # This class is responsible for multiplexing Ruby and Crystal code on a single thread.
-  # Functions annotated with async: true, are executed using callbacks to allow these to be interleaved without blocking.
-
+  # This class is responsible for multiplexing Ruby and Crystal code onto a single thread.
+  # Functions annotated with async: true, are executed using callbacks to allow these to be interleaved
+  # without blocking multiple Ruby threads.
   module Reactor
     module_function
 
     class SingleThreadViolation < StandardError; end
+    class StopReactor < StandardError; end
+
+    @single_thread_mode = false
 
     REACTOR_QUEUE = Queue.new
 
@@ -39,13 +43,15 @@ module CrystalRuby
       end
     end
 
-    ERROR_CALLBACK = FFI::Function.new(:void, %i[string string int]) do |error_type, message, tid|
+    ERROR_CALLBACK = FFI::Function.new(:void, %i[string string string int]) do |error_type, message, backtrace, tid|
       error_type = error_type.to_sym
       is_exception_type = Object.const_defined?(error_type) && Object.const_get(error_type).ancestors.include?(Exception)
       error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
-      raise error_type.new(message) unless THREAD_MAP.key?(tid)
+      error = error_type.new(message)
+      error.set_backtrace(JSON.parse(backtrace))
+      raise error  unless THREAD_MAP.key?(tid)
 
-      THREAD_MAP[tid][:error] = error_type.new(message)
+      THREAD_MAP[tid][:error] = error
       THREAD_MAP[tid][:result] = nil
       THREAD_MAP[tid][:cond].signal
     end
@@ -57,18 +63,35 @@ module CrystalRuby
     def await_result!
       mux, cond = thread_conditions.values_at(:mux, :cond)
       cond.wait(mux)
-      raise THREAD_MAP[thread_id][:error] if THREAD_MAP[thread_id][:error]
+      if error = thread_conditions[:error]
+        combined_backtrace = error.backtrace[0..(error.backtrace.index{|m| m.include?('call_blocking_function')} || 2) - 3] + caller[5..-1]
+        error.set_backtrace(combined_backtrace)
+        raise error
+      end
 
-      THREAD_MAP[thread_id][:result]
+      thread_conditions[:result]
+    end
+
+    def halt_loop!
+      raise StopReactor
+    end
+
+    def stop!
+      if @main_loop
+        schedule_work!(self, :halt_loop!, :void, blocking: true, async: false)
+        @main_loop.join
+        @main_loop = nil
+        CrystalRuby.log_info "Reactor loop stopped"
+      end
     end
 
     def start!
       @main_loop ||= Thread.new do
+        @main_thread_id = Thread.current.object_id
         CrystalRuby.log_debug("Starting reactor")
         CrystalRuby.log_debug("CrystalRuby initialized")
-        loop do
-          REACTOR_QUEUE.pop[]
-        end
+        REACTOR_QUEUE.pop[] while true
+      rescue StopReactor => e
       rescue StandardError => e
         CrystalRuby.log_error "Error: #{e}"
         CrystalRuby.log_error e.backtrace
@@ -80,26 +103,17 @@ module CrystalRuby
     end
 
     def yield!(lib: nil, time: 0.0)
-      schedule_work!(lib, :yield, nil, async: false, blocking: false, lib: lib) if running? && lib
+      schedule_work!(lib, :yield, :int, async: false, blocking: false, lib: lib) if running? && lib
       nil
     end
 
-    def current_thread_id=(val)
-      @current_thread_id = val
-    end
-
-    def current_thread_id
-      @current_thread_id
-    end
-
     def schedule_work!(receiver, op_name, *args, return_type, blocking: true, async: true, lib: nil)
-      if @single_thread_mode
+      if @single_thread_mode || (Thread.current.object_id == @main_thread_id && op_name != :yield)
         unless Thread.current.object_id == @main_thread_id
           raise SingleThreadViolation,
                 "Single thread mode is enabled, cannot run in multi-threaded mode. " \
                 "Reactor was started from: #{@main_thread_id}, then called from #{Thread.current.object_id}"
         end
-
         return receiver.send(op_name, *args)
       end
 
@@ -118,14 +132,17 @@ module CrystalRuby
           when blocking
             lambda {
               tvars[:error] = nil
-              Reactor.current_thread_id = tvars[:thread_id]
+              should_halt = false
               begin
                 result = receiver.send(op_name, *args)
+              rescue StopReactor => e
+                should_halt = true
               rescue StandardError => e
                 tvars[:error] = e
               end
               tvars[:result] = result unless tvars[:error]
               tvars[:cond].signal
+              raise StopReactor if should_halt
             }
           else
             lambda {

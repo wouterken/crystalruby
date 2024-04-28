@@ -202,6 +202,7 @@ CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP
  :double=>"Float64",
  :bool=>"Bool",
  :void=>"Void",
+ :pointer=>"Pointer(Void)",
  :string=>"String"}
 ```
 

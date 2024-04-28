@@ -1,12 +1,23 @@
 module CrystalRuby
   module Template
-    Dir[File.join(File.dirname(__FILE__), "templates", "*.cr")].each do |file|
+    class Renderer < Struct.new(:raw_value)
+      require 'erb'
+      def render(context)
+        if context.kind_of?(::Hash)
+          raw_value % context
+        else
+          ERB.new(raw_value, trim_mode: "%").result(context)
+        end
+      end
+    end
+
+    (
+      Dir[File.join(File.dirname(__FILE__), "templates", "**", "*.cr")] +
+      Dir[File.join(File.dirname(__FILE__), "types", "**", "*.cr")]
+    ).each do |file|
       template_name = File.basename(file, File.extname(file)).split("_").map(&:capitalize).join
       template_value = File.read(file)
-      template_value.define_singleton_method(:render) do |context|
-        self % context
-      end
-      const_set(template_name, template_value)
+      const_set(template_name, Renderer.new(template_value))
     end
   end
 end
