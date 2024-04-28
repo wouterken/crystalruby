@@ -3,11 +3,12 @@
 require "ffi"
 require "digest"
 require "fileutils"
-require "method_source"
+require "syntax_tree"
 require "pathname"
 
 require_relative "crystalruby/config"
 require_relative "crystalruby/version"
+require_relative "crystalruby/arc_mutex"
 require_relative "crystalruby/typemaps"
 require_relative "crystalruby/types"
 require_relative "crystalruby/typebuilder"
@@ -17,7 +18,7 @@ require_relative "crystalruby/adapter"
 require_relative "crystalruby/reactor"
 require_relative "crystalruby/library"
 require_relative "crystalruby/function"
-require_relative "module"
+require_relative "crystalruby/source_reader"
 
 module CrystalRuby
   module_function

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-module Crystalruby
-  VERSION = "0.2.3"
+module CrystalRuby
+  VERSION = "0.3.0"
 end

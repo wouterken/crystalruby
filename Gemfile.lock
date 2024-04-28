@@ -1,36 +1,41 @@
 PATH
   remote: .
   specs:
-    crystalruby (0.2.3)
+    crystalruby (0.3.0)
       digest
       ffi
       fileutils
-      method_source
+      syntax_tree
 
 GEM
   remote: https://rubygems.org/
   specs:
+    ansi (1.5.0)
     ast (2.4.2)
+    builder (3.3.0)
     debug (1.9.2)
       irb (~> 1.10)
       reline (>= 0.3.8)
     digest (3.1.1)
-    ffi (1.16.3)
+    ffi (1.17.0)
     fileutils (1.7.2)
-    get_process_mem (0.2.7)
-      ffi (~> 1.0)
     io-console (0.7.2)
     irb (1.12.0)
       rdoc
       reline (>= 0.4.2)
     json (2.7.1)
     language_server-protocol (3.17.0.3)
-    method_source (1.0.0)
     minitest (5.22.3)
+    minitest-reporters (1.7.1)
+      ansi
+      builder
+      minitest (>= 5.0)
+      ruby-progressbar
     parallel (1.24.0)
     parser (3.3.0.5)
       ast (~> 2.4.1)
       racc
+    prettier_print (1.2.1)
     psych (5.1.2)
       stringio
     racc (1.7.3)
@@ -57,6 +62,8 @@ GEM
       parser (>= 3.3.0.4)
     ruby-progressbar (1.13.0)
     stringio (3.1.0)
+    syntax_tree (6.2.0)
+      prettier_print (>= 1.2.0)
     unicode-display_width (2.5.0)
 
 PLATFORMS
@@ -65,9 +72,10 @@ PLATFORMS
 
 DEPENDENCIES
   crystalruby!
-  debug (>= 1.0.0)
-  get_process_mem
+  debug (>= 1.1.0)
+  ffi
   minitest (~> 5.16)
+  minitest-reporters (~> 1.4)
   rake (~> 13.0)
   rubocop (~> 1.21)
 

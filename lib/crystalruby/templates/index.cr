@@ -1,48 +1,40 @@
 module CrystalRuby
-
   ARGV1 = "crystalruby"
-  CALLBACK_MUX = Mutex.new
 
-  alias ErrorCallback = (Pointer(UInt8), Pointer(UInt8), UInt32 -> Void)
+  alias ErrorCallback = (Pointer(::UInt8), Pointer(::UInt8), Pointer(::UInt8), ::UInt32 -> Void)
+
+  class_property libname : String = "crystalruby"
+  class_property callbacks : Channel(Proc(Nil)) = Channel(Proc(Nil)).new
+  class_property rc_mux : Pointer(Void) = Pointer(Void).null
+  class_property task_counter : Atomic(Int32) = Atomic(Int32).new(0)
 
   # Initializing Crystal Ruby invokes init on the Crystal garbage collector.
   # We need to be sure to only do this once.
-  @@initialized = false
-
-  @@libname = "crystalruby"
-  # Our Ruby <-> Crystal Reactor uses Fibers, with callbacks to allow
-  # multiple concurrent Crystal operations to be queued
-  @@callbacks = [] of Proc(Nil)
-
-  # We only continue to yield to the Crystal scheduler from Ruby
-  # while there are outstanding tasks.
-  @@task_counter : Atomic(Int32) = Atomic.new(0)
+  class_property initialized : Bool = false
 
   # We can override the error callback to catch errors in Crystal,
   # and explicitly expose them to Ruby.
-  @@error_callback : ErrorCallback = ->(t : UInt8* , s : UInt8*, tid : UInt32){ puts "Error: #{t}:#{s}" }
+  @@error_callback : ErrorCallback?
 
   # This is the entry point for instantiating CrystalRuby
   # We:
   # 1. Initialize the Crystal garbage collector
   # 2. Set the error callback
   # 3. Call the Crystal main function
-  def self.init(libname : Pointer(UInt8), error_callback : ErrorCallback)
-    return if @@initialized
-    @@initialized = true
+  def self.init(libname : Pointer(::UInt8), @@error_callback : ErrorCallback, @@rc_mux : Pointer(Void))
+    return if self.initialized
+    self.initialized = true
     argv_ptr = ARGV1.to_unsafe
     Crystal.main_user_code(0, pointerof(argv_ptr))
-    @@error_callback = error_callback
-    @@libname = String.new(libname)
+    self.libname = String.new(libname)
+    LibGC.set_finalize_on_demand(1)
   end
 
   # Explicit error handling (triggers exception within Ruby on the same thread)
-  def self.report_error(error_type : String, str : String, thread_id : UInt32, )
-    @@error_callback.call(error_type.to_unsafe, str.to_unsafe, thread_id)
-  end
-
-  def self.error_callback : ErrorCallback
-    @@error_callback
+  def self.report_error(error_type : String, message : String, backtrace : String, thread_id : UInt32)
+    if error_reporter = @@error_callback
+      error_reporter.call(error_type.to_unsafe, message.to_unsafe, backtrace.to_unsafe, thread_id)
+    end
   end
 
   # New async task started
@@ -57,51 +49,40 @@ module CrystalRuby
 
   # Get number of outstanding tasks
   def self.get_task_counter : Int32
-    @@task_counter.get()
+    @@task_counter.get
   end
 
   # Queue a callback for an async task
   def self.queue_callback(callback : Proc(Nil))
-    CALLBACK_MUX.synchronize do
-      @@callbacks << callback
-    end
+    self.callbacks.send(callback)
   end
 
-  # Get number of queued callbacks
-  def self.count_callbacks : Int32
-    @@callbacks.size
-  end
-
-  def self.libname : String
-    @@libname
-  end
-
-  # Flush all callbacks
-  def self.flush_callbacks : Int32
-    CALLBACK_MUX.synchronize do
-      count = @@callbacks.size
-      @@callbacks.each do |callback|
-        result = callback.call()
-      end
-      @@callbacks.clear
-    end
-    get_task_counter
+  def self.synchronize
+    LibC.pthread_mutex_lock(self.rc_mux)
+    yield
+    LibC.pthread_mutex_unlock(self.rc_mux)
   end
 end
 
 # Initialize CrystalRuby
-fun init(libname : Pointer(UInt8), cb : CrystalRuby::ErrorCallback): Void
-  CrystalRuby.init(libname, cb)
+fun init(libname : Pointer(::UInt8), cb : CrystalRuby::ErrorCallback, rc_mux : Pointer(Void)) : Void
+  CrystalRuby.init(libname, cb, rc_mux)
 end
 
 fun stop : Void
-  LibGC.deinit()
+  LibGC.deinit
 end
 
 @[Link("gc")]
 lib LibGC
   $stackbottom = GC_stackbottom : Void*
   fun deinit = GC_deinit
+  fun set_finalize_on_demand = GC_set_finalize_on_demand(Int32)
+  fun invoke_finalizers = GC_invoke_finalizers : Int
+end
+
+lib LibC
+  fun calloc = calloc(Int32, Int32) : Void*
 end
 
 module GC
@@ -112,6 +93,11 @@ module GC
   def self.set_stackbottom(stack_bottom : Void*)
     LibGC.stackbottom = stack_bottom
   end
+
+  def self.collect
+    LibGC.collect
+    LibGC.invoke_finalizers
+  end
 end
 
 # Yield to the Crystal scheduler from Ruby
@@ -119,24 +105,25 @@ end
 # Otherwise, we yield to the Crystal scheduler and let Ruby know
 # how many outstanding tasks still remain (it will stop yielding to Crystal
 # once this figure reaches 0).
-fun yield() : Int32
-  if CrystalRuby.count_callbacks == 0
-    Fiber.yield
+fun yield : Int32
+  Fiber.yield
+  loop do
+    select
+    when callback = CrystalRuby.callbacks.receive
+      callback.call
+    else
+      break
+    end
+  end
+  CrystalRuby.get_task_counter
+end
 
-    # TODO: We should apply backpressure here to prevent busy waiting if the number of outstanding tasks is not decreasing.
-    # Use a simple exponential backoff strategy, to increase the time between each yield up to a maximum of 1 second.
-
-    CrystalRuby.get_task_counter
-  else
-    CrystalRuby.flush_callbacks()
+class Array(T)
+  def initialize(size : Int32, @buffer : Pointer(T))
+    @size = size.to_i32
+    @capacity = @size
   end
 end
 
-
-# This is where we define all our Crystal modules and types
-# derived from their Ruby counterparts.
-%{type_modules}
-
-# Require all generated crystal files
 require "json"
 %{requires}

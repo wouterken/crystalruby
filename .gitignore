@@ -8,3 +8,5 @@
 /tmp/
 crystalruby-*.gem
 /crystalruby/
+.DS_Store
+.mise.toml
