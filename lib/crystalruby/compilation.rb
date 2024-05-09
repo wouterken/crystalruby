@@ -19,7 +19,7 @@ module CrystalRuby
     def self.build_compile_command(verbose:, debug:, lib:, src:)
       verbose_flag = verbose ? "--verbose --progress" : ""
       debug_flag = debug ? "" : "--release --no-debug"
-      redirect_output = " &> /dev/null " unless verbose
+      redirect_output = " > /dev/null " unless verbose
       lib, src, lib_dir = [lib, src, File.dirname(src)].map(&Shellwords.method(:escape))
       %(cd #{lib_dir} && crystal build #{verbose_flag} #{debug_flag} --single-module --link-flags "-shared" -o #{lib} #{src}#{redirect_output})
     end
