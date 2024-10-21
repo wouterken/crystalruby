@@ -592,7 +592,7 @@ $ gem install crystalruby
 You can run `crystalruby init` to generate a configuration file with sane defaults.
 
 ```bash
-crystalruby init
+$ crystalruby init
 ```
 
 ```yaml
@@ -610,6 +610,7 @@ Alternatively, these can be set programmatically, e.g:
 CrystalRuby.configure do |config|
   config.crystal_src_dir = "./crystalruby"
   config.crystal_codegen_dir = "generated"
+  config.crystal_missing_ignore = false
   config.debug = true
   config.verbose = false
   config.colorize_log_output = false

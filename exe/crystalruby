@@ -10,6 +10,7 @@ def init
     # crystalruby configuration file
     crystal_src_dir: "./crystalruby"
     crystal_codegen_dir: "generated"
+    crystal_missing_ignore: false
     log_level: "info"
     single_thread_mode: false
     debug: true
