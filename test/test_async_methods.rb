@@ -4,21 +4,20 @@ require_relative "test_helper"
 require "benchmark"
 class TestAsyncMethods < Minitest::Test
   module Sleeper
-    crystalize [a: :float] => :void, async: true
-    def sleep_async(a)
-      sleep(a)
+    crystalize async: true
+    def sleep_async(a: :float)
+      sleep(a.seconds)
     end
 
-    crystalize [a: :float] => :void, async: false
-    def sleep_sync(a)
-      sleep(a)
+    crystalize async: false
+    def sleep_sync(a: :float)
+      sleep(a.seconds)
     end
   end
 
-  def test_sync_sleep_is_serial
-    if CrystalRuby.config.single_thread_mode
-      return # Multi threaded invocation of Crystal code is specific to multi-threaded mode
-    end
+  def test_sync_sleep_is_serial_async_concurrent
+    # Multi threaded invocation of Crystal code is specific to multi-threaded mode
+    return if CrystalRuby.config.single_thread_mode
 
     total_sleep_time = Benchmark.realtime do
       5.times.map do
@@ -28,12 +27,6 @@ class TestAsyncMethods < Minitest::Test
       end.each(&:join)
     end
     assert total_sleep_time > 1
-  end
-
-  def test_async_sleep_is_concurrent
-    if CrystalRuby.config.single_thread_mode
-      return # Multi threaded invocation of Crystal code is specific to multi-threaded mode
-    end
 
     total_sleep_time = Benchmark.realtime do
       5.times.map do
@@ -43,5 +36,35 @@ class TestAsyncMethods < Minitest::Test
       end.each(&:join)
     end
     assert total_sleep_time < 0.5
+  end
+
+  crystalize async: true
+  def callback_ruby(returns: Int32)
+    ruby_callback() + ruby_callback()
+  end
+
+  expose_to_crystal
+  def ruby_callback(returns: Int32)
+    10
+  end
+
+  def test_can_callback_ruby_from_async
+    assert_equal callback_ruby, 20
+  end
+
+  crystalize async: true
+  def yield_to_ruby(yield: Proc(Int32, Nil))
+    yield 10
+    yield 20
+    yield 30
+  end
+
+  def test_can_yield_to_ruby_from_async
+    yielded = []
+    yield_to_ruby do |val|
+      yielded << val
+    end
+
+    assert_equal yielded, [10, 20, 30]
   end
 end

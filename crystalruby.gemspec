@@ -4,7 +4,7 @@ require_relative "lib/crystalruby/version"
 
 Gem::Specification.new do |spec|
   spec.name = "crystalruby"
-  spec.version = Crystalruby::VERSION
+  spec.version = CrystalRuby::VERSION
   spec.authors = ["Wouter Coppieters"]
   spec.email = ["wc@pico.net.nz"]
 
@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "digest"
   spec.add_dependency "ffi"
   spec.add_dependency "fileutils"
-  spec.add_dependency "method_source"
+  spec.add_dependency "syntax_tree"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

@@ -15,91 +15,91 @@
   </tr>
 </table>
 
-`crystalruby` is a gem that allows you to write Crystal code, inlined in Ruby. All you need is a modern crystal compiler installed on your system.
+`crystalruby` is a gem that allows you to write Crystal code, inlined in Ruby.
+All you need is a modern crystal compiler installed on your system.
 
 You can then turn simple methods into Crystal methods as easily as demonstrated below:
 
 ```ruby
 require 'crystalruby'
 
-module MyTestModule
-  # The below method will be replaced by a compiled Crystal version
-  # linked using FFI.
-  crystalize [a: :int, b: :int] => :int
-  def add(a, b)
-    a + b
-  end
+# The below method will be replaced by a compiled Crystal version
+# linked using FFI.
+
+crystalize
+def add(a: Int32, b: Int32, returns: Int32)
+  a + b
 end
 
 # This method is run in Crystal, not Ruby!
-MyTestModule.add(1, 2) # => 3
+puts add(1, 2) # => 3
 ```
 
-With as small a change as this, you should be able to see a significant increase in performance for some Ruby code.
+With as small a change as this, you should be able to see a significant increase in performance for several classes of CPU or memory intensive code.
 E.g.
 
 ```ruby
-
 require 'crystalruby'
 require 'benchmark'
 
-module PrimeCounter
-  crystalize [n: :int32] => :int32
-  def count_primes_upto_cr(n)
-    (2..n).each.count do |i|
-      is_prime = true
-      (2..Math.sqrt(i).to_i).each do |j|
-        if i % j == 0
-          is_prime = false
-          break
-        end
+crystalize :int32
+def count_primes_upto_cr(n: Int32)
+  (2..n).each.count do |i|
+    is_prime = true
+    (2..Math.sqrt(i).to_i).each do |j|
+      if i % j == 0
+        is_prime = false
+        break
       end
-      is_prime
     end
-  end
-
-  module_function
-
-  def count_primes_upto_rb(n)
-    (2..n).each.count do |i|
-      is_prime = true
-      (2..Math.sqrt(i).to_i).each do |j|
-        if i % j == 0
-          is_prime = false
-          break
-        end
-      end
-      is_prime
-    end
+    is_prime
   end
 end
 
-include PrimeCounter
-puts(Benchmark.realtime { count_primes_upto_rb(1000_000) })
-puts(Benchmark.realtime { count_primes_upto_cr(1000_000) })
+def count_primes_upto_rb(n)
+  (2..n).each.count do |i|
+    is_prime = true
+    (2..Math.sqrt(i).to_i).each do |j|
+      if i % j == 0
+        is_prime = false
+        break
+      end
+    end
+    is_prime
+  end
+end
+
+puts Benchmark.realtime { count_primes_upto_rb(1_000_000) }
+puts Benchmark.realtime { count_primes_upto_cr(1_000_000) }
 ```
 
 ```bash
-2.8195170001126826 # Ruby
-0.3402599999681115 # Crystal
+3.04239400010556 # Ruby
+0.06029000016860 # Crystal (50x faster)
 ```
 
-_Note_: The first run of the Crystal code will be slower, as it needs to compile the code first. The subsequent runs will be much faster.
+_Note_: The first, unprimed run of the Crystal code will be slower, as it needs to compile the code first. The subsequent runs will be much faster.
 
 You can call embedded crystal code, from within other embedded crystal code.
+The below crystalized method `redis_set_and_return` calls the `redis_get` method, which is also crystalized.
+Note the use of the shard command to define the Redis shard dependency of the crystalized code.
 E.g.
 
 ```ruby
+require 'crystalruby'
+
 module Cache
 
-  crystalize [key: :string] => :string
-  def redis_get(key)
+  shard :redis, github: 'jgaskins/redis'
+
+  crystalize :string
+  def redis_get(key: String)
     rds = Redis::Client.new
     value = rds.get(key).to_s
   end
 
-  crystalize [key: :string, value: :string] => :string
-  def redis_set_and_return(key, value)
+  crystalize :string
+  def redis_set_and_return(key: String, value: String)
     redis = Redis::Client.new
     redis.set(key, value)
     Cache.redis_get(key)
@@ -115,35 +115,91 @@ $ abc
 
 ## Syntax
 
-### Ruby Compatible
+To define a method that will be compiled as Crystal, you can use the `crystalize` method.
+You must also provide types, for the parameters and return type.
 
-Where the Crystal syntax is also valid Ruby syntax, you can just write Ruby.
+### Method Signatures
+Parameter types are defined using kwarg syntax, with the type as the value.
+E.g.
+```ruby
+def foo(a: Int32, b: Array(Int), c: String)
+```
+
+Return types are specified using either a lambda, returning the type, as the first argument to the crystalize method, or the special `returns` kwarg.
+
+E.g.
+
+```ruby
+# Returns an Int32
+crystalize ->{ Int32 }
+def returns_int32
+  3
+end
+
+# You can use the symbol shortcode for primitive types
+crystalize :int32
+def returns_int32
+  3
+
+# Define the return type directly using the `returns` kwarg
+crystalize
+def returns_int32(returns: Int32)
+  3
+end
+```
+
+### Ruby Compatible Method Bodies
+Where the Crystal syntax of the method body is also valid Ruby syntax, you can just write Ruby.
 It'll be compiled as Crystal automatically.
 
 E.g.
 
 ```ruby
-crystalize [a: :int, b: :int] => :int
-def add(a, b)
+crystalize :int
+def add(a: :int, b: :int)
   puts "Adding #{a} and #{b}"
   a + b
 end
 ```
 
-### Crystal Compatible
-
+### Crystal-only Syntax
 Some Crystal syntax is not valid Ruby, for methods of this form, we need to
-define our functions using a raw: true option
+define our functions using the `raw: true` option
 
 ```ruby
-crystalize [a: :int, b: :int] => :int, raw: true
-def add(a, b)
+crystalize raw: true
+def add(a: :int, b: :int)
   <<~CRYSTAL
     c = 0_u64
     a + b + c
   CRYSTAL
 end
 ```
+
+### Upgrading from version 0.2.x
+
+#### Change in type signatures
+In version 0.2.x, argument and return types were passed to the `crystalize` method using a different syntax:
+
+```ruby
+# V <= 0.2.x
+crystalize [arg1: :arg1_type , arg2: :arg2_type] => :return_type
+def foo(arg1, arg2)
+```
+
+In crystalruby > 0.3.x, argument types are now passed as keyword arguments, and the return type is passed either as a keyword argument
+or as the first argument to crystalize (either using symbol shorthand, or a Lambda returning a Crystal type).
+
+```ruby
+# V >= 0.3.x
+crystalize :return_type
+def foo(arg1: :arg1_type, arg2: :arg2_type)
+
+# OR use the `returns` kwarg
+crystalize
+def foo(arg1: :arg1_type, arg2: :arg2_type, returns: :return_type)
+```
+
 
 ## Getting Started
 
@@ -160,67 +216,47 @@ end
 
 require 'crystalruby'
 
-module Adder
-  crystalize [a: :int, b: :int] => :int
-  def add(a, b)
-    a + b
-  end
+crystalize :int
+def add(a: :int, b: :int)
+  a + b
 end
 
-puts Adder.add(1, 2)
+puts add(1, 2)
 ```
 
 ## Types
+Most built-in Crystal Types are available. You can also use the `:symbol` short-hand for primitive types.
 
-Currently primitive types are supported.
-Composite types are supported using JSON serialization.
-C-Structures are a WIP.
-To see the list of currently supported primitive type mappings of FFI types to crystal types, you can check: `CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP`
-E.g.
+### Supported Types
+* UInt8 UInt16 UInt32 UInt64 Int8 Int16 Int32 Int64 Float32 Float64
+* Time
+* Symbol
+* Nil
+* Bool
+* Container Types (Tuple, Tagged Union, NamedTuple, Array, Hash)
+* Proc
 
-```ruby
-CrystalRuby::Typemaps::CRYSTAL_TYPE_MAP
-=> {:char=>"Int8",
- :uchar=>"UInt8",
- :int8=>"Int8",
- :uint8=>"UInt8",
- :short=>"Int16",
- :ushort=>"UInt16",
- :int16=>"Int16",
- :uint16=>"UInt16",
- :int=>"Int32",
- :uint=>"UInt32",
- :int32=>"Int32",
- :uint32=>"UInt32",
- :long=>"Int32 | Int64",
- :ulong=>"UInt32 | UInt64",
- :int64=>"Int64",
- :uint64=>"UInt64",
- :long_long=>"Int64",
- :ulong_long=>"UInt64",
- :float=>"Float32",
- :double=>"Float64",
- :bool=>"Bool",
- :void=>"Void",
- :string=>"String"}
-```
+Primitive types short-hands
+* :char :uchar :int8 :uint8 :short :ushort :int16 :uint16
+* :int :uint :int32 :uint32 :long :ulong :int64 :uint64
+* :long_long :ulong_long :float :double :bool
+* :void :pointer :string
 
-## Composite Types (using JSON serialization)
-
-The library allows you to pass complex nested structures using JSON as a serialization format.
-The type signatures for composite types can use ordinary Crystal Type syntax.
-Type conversion is applied automatically.
+For composite and union types, you can declare these within the function signature, using a syntax similar to Crystal's type syntax.
 
 E.g.
 
 ```ruby
-crystalize [a: json{ Int64 | Float64 | Nil }, b: json{ String | Array(Bool)  } ] => :void
-def complex_argument_types
+require 'crystalruby'
+
+crystalize
+def complex_argument_types(a:  Int64 | Float64 | Nil, b: String | Array(Bool))
   puts "Got #{a} and #{b}"
 end
 
-crystalize [] => json{ Int32 | String | Hash(String, Array(NamedTuple(hello: Int32)) | Time)}
-def complex_return_type
+
+crystalize
+def complex_return_type(returns: Int32 | String | Hash(String, Array(NamedTuple(hello: Int32)) | Time))
   return {
     "hello" => [
       {
@@ -230,64 +266,240 @@ def complex_return_type
     "world" => Time.utc
   }
 end
+
+complex_argument_types(10, "Hello")
+puts complex_return_type()
 ```
+
 
 Type signatures validations are applied to both arguments and return types.
 
 ```ruby
-[1] pry(main)> Foo.complex_argument_types(nil, "test")
+[1] pry(main)> complex_argument_types(nil, "test")
 Got  and test
 => nil
 
-[2] pry(main)> Foo.complex_argument_types(88, [true, false, true])
+[2] pry(main)> complex_argument_types(88, [true, false, true])
 Got 88 and [true, false, true]
 => nil
 
-[3] pry(main)> Foo.complex_argument_types(88, [true, false, 88])
+[3] pry(main)> complex_argument_types(88, [true, false, 88])
 ArgumentError: Expected Bool but was Int at line 1, column 15
 from crystalruby.rb:303:in `block in compile!'
 ```
 
-## Named Types
+### Reference Types
+By default, all types are passed by value, as there is an implicit copy each time a value is passed
+between Crystal and Ruby.
+However, if you name a type you can instantiate it (in either Ruby or Crystal) and pass by reference instead.
+This allows for more efficient passing of large data structures between the two languages.
 
-You can name your types, for more succinct method signatures.
-The type names will be mirrored in the generated Crystal code.
+`crystalruby` implements a shared reference counter, so that the same object can be safely used across both languages
+without fear of them being garbage collected prematurely.
+
 E.g.
 
 ```ruby
 
-IntArrOrBoolArr = crtype{ Array(Bool) | Array(Int32) }
+IntArrOrBoolArr = CRType{ Array(Bool) | Array(Int32) }
 
-crystalize [a: json{ IntArrOrBoolArr }] => json{ IntArrOrBoolArr }
-def method_with_named_types(a)
+crystalize
+def method_with_named_types(a: IntArrOrBoolArr, returns: IntArrOrBoolArr)
   return a
 end
+
+# In this case the array is converted to a Crystal Array (so a copy is made)
+method_with_named_types([1,2,3])
+
+# In this case, no conversion is necessary and the array is passed by reference
+int_array = IntArrOrBoolArr.new([1,2,3]) # Or  IntArrOrBoolArr[1,2,3]
+method_with_named_types(int_array)
+```
+
+We can demonstrate the significant performance advantage of passing by reference with the following benchmark.
+
+```ruby
+require 'benchmark'
+require 'crystalruby'
+
+IntArray = CRType{ Array(Int32) }
+
+crystalize
+def array_doubler(a: IntArray)
+  a.map! { |x| x * 2 }
+end
+
+def array_doubler_rb(a)
+  a.map! { |x| x * 2 }
+end
+
+big_array     = Array.new(1_000_000) { rand(100) }
+big_int_array = IntArray.new(big_array)
+
+Benchmark.bm do |x|
+  x.report("Crystal Pass by value")     { array_doubler(big_array) }
+  x.report("Crystal Pass by reference") { array_doubler(big_int_array) }
+  x.report("Ruby    Pass by reference") { array_doubler_rb(big_array) }
+end
+```
+
+### Shared Instances
+You can even define instance methods on an instance of a reference type, to make addressable objects that are shared between Ruby and Crystal.
+
+```ruby
+require 'crystalruby'
+
+class Person < CRType{ NamedTuple(name: String, age: Int32) }
+  def greet_rb
+    "Hello from Ruby. My name is #{self.name.value}"
+  end
+
+  crystalize :string
+  def greet_cr
+    "Hello from Crystal, My name is #{self.name.value}"
+  end
+end
+
+person = Person.new(name: "Bob", age: 30)
+puts person.greet_rb
+person.name = "Alice"
+puts person.greet_cr
+```
+
+## Calling Ruby from Crystal
+You can also call Ruby methods from Crystal. To do this, you must annotate the exposed Ruby method with
+`expose_to_crystal` so that crystalruby can perform the appropriate type conversions.
+
+```ruby
+require 'crystalruby'
+
+module Adder
+  expose_to_crystal :int32
+  def add_rb(a: Int32, b: Int32)
+    a + b
+  end
+
+  crystalize :int32
+  def add_crystal(a: Int32, b: Int32)
+    return add_rb(a, b)
+  end
+end
+
+puts Adder.add_crystal(1, 2)
+```
+
+### Kemal
+Here's a more realistic example of where you could call Ruby from Crystal.
+We run the Kemal web server in Crystal, but allow certain routes to respond from Ruby, allowing
+us to combine the raw speed of Kemal, with the flexibility of Ruby.
+
+```ruby
+require 'crystalruby'
+
+shard :kemal, github: 'kemalcr/kemal'
+
+crystalize async: true
+def start_server
+  Kemal.run(3000, [""])
+end
+
+expose_to_crystal
+def return_ruby_response(returns: String)
+  "Hello World! #{Random.rand(0..100)}"
+end
+
+crystal do
+  get "/kemal_rb" do
+    return_ruby_response
+  end
+
+  get "/kemal_cr" do
+    "Hello World! #{Random.rand(0..100)}"
+  end
+end
+
+start_server
+```
+
+We could compare the above to an equivalent pure Ruby implementation using Sinatra.
+
+```ruby
+require 'sinatra'
+
+get '/sinatra_rb' do
+  'Hello world!'
+end
+```
+
+and benchmark the two.
+
+```bash
+
+$ wrk -d 2 http://localhost:4567/kemal_rb
+... Requests/sec:  23352.00
+
+$ wrk -d 2 http://localhost:4567/kemal_cr
+... Requests/sec:  35730.03
+
+$ wrk -d 2 http://localhost:4567/sinatra_rb
+... Requests/sec:   5300.67
+
+```
+
+Note the hybrid Crystal/Ruby implementation is significantly faster (4x) than the pure Ruby implementation
+and almost 66% as fast as the pure Crystal implementation.
+
+
+## Yielding
+crystalruby supports Crystal methods yielding to Ruby, and Ruby blocks yielding to Crystal.
+To support this, you must add a block argument to your method signature, and use the `yield` keyword to call the block.
+
+See notes on how to define a Proc type in Crystal [here](https://crystal-lang.org/reference/1.14/syntax_and_semantics/literals/proc.html#the-proc-type)
+
+```ruby
+require 'crystalruby'
+
+crystalize
+def yielder_cr(a: Int32, b: Int32, yield: Proc(Int32, Nil))
+  yield a + b
+end
+
+expose_to_crystal
+def yielder_rb(a: Int32, b: Int32, yield: Proc(Int32, Nil))
+  yield a + b
+end
+
+crystalize
+def invoke_yielder_rb(a: Int32, b: Int32)
+  yielder_rb(a, b) do |sum|
+    puts sum
+  end
+end
+
+yielder_cr(10, 20){|sum| puts sum } #=> 30
+invoke_yielder_rb(50, 50)           #=> 100
 ```
 
 ## Exceptions
 
 Exceptions thrown in Crystal code can be caught in Ruby.
 
-## Installing shards and writing non-embedded Crystal code
+## Using shards
+You can specify shard dependencies inline in your Ruby source, using the `shard` method.
 
-You can use any Crystal shards and write ordinary, stand-alone Crystal code.
+```ruby
 
-The default entry point for the crystal shared library generated by the gem is
-inside `./crystalruby/{library_name}/src/main.cr`.
-`{library_name}` defaults to `crystalruby` if you haven't explicitly specific a different library target.
+shard :redis, github: 'stefanwille/crystal-redis'
 
-This file is not automatically overridden by the gem, and is safe for you to define and require new files relative to this location to write additional stand-alone Crystal code.
-
-You can define shard dependencies inside `./crystalruby/{library_name}/src/shard.yml`
-Run the below to install new shards
-
-```bash
-bundle exec crystalruby install
 ```
 
-Remember to also require these dependencies after installing them to make them available to `crystalruby` code. E.g. inside `./crystalruby/{libraryname}/src/main.cr`
+Any options you pass to the `shard` method will be added to the corresponding shard dependency in the autogenerated `shard.yml` file.
+crystalruby will automatically
+* run `shards install` for you
+* require the specified shard
+upon compilation.
 
-You can edit the default paths for crystal source and library files from within the `./crystalruby.yaml` config file.
+If your shard file gets out of sync with your Ruby file, you can run `crystalruby clean` to reset your workspace to a clean state.
 
 ## Wrapping Crystal code in Ruby
 
@@ -295,24 +507,22 @@ Sometimes you may want to wrap a Crystal method in Ruby, so that you can use Rub
 To do this, you simply pass a block to the `crystalize` method, which will serve as the Ruby entry point to the function. From within this block, you can invoke `super` to call the Crystal method, and then apply any Ruby transformations to the result.
 
 ```ruby
-module MyModule
-  crystalize [a: :int32, b: :int32] => :int32 do |a, b|
-    # In this example, we perform automated conversion to integers inside Ruby.
-    # Then add 1 to the result of the Crystal method.
-    result = super(a.to_i, b.to_i)
-    result + 1
-  end
-  def add(a, b)
-    a + b
-  end
+crystalize :int32 do |a, b|
+  # In this example, we perform automated conversion to integers inside Ruby.
+  # Then add 1 to the result of the Crystal method.
+  result = super(a.to_i, b.to_i)
+  result + 1
+end
+def convert_to_i_and_add_and_succ(a: :int32, b: :int32)
+  a + b
 end
 
-MyModule.add("1", "2")
+puts convert_to_i_and_add_and_succ("1", "2")
 ```
 
 ## Inline Chunks
 
-`crystalruby` also allows you to write inline Crystal code that does not require binding to Ruby. This can be useful for e.g. performing setup operations or initializations.
+`crystalruby` also allows you to write top-level Crystal code outside of method definitions. This can be useful for e.g. performing setup operations or initializations.
 
 Follow these steps for a toy example of how we can use crystalized ruby and inline chunks to expose the [crystal-redis](https://github.com/stefanwille/crystal-redis) library to Ruby.
 
@@ -346,6 +556,8 @@ require 'crystalruby'
 
 module CrystalRedis
 
+  shard :redis, github: 'stefanwille/crystal-redis'
+
   crystal do
     CLIENT = Redis.new
     def self.client
@@ -353,51 +565,55 @@ module CrystalRedis
     end
   end
 
-  crystalize [key: :string, value: :string] => :void
-  def set(key, value)
+  crystalize
+  def set(key: String, value: String)
     client.set(key, value)
   end
 
-  crystalize [key: :string] => :string
-  def get(key)
+  crystalize :string
+  def get(key: String)
     client.get(key).to_s
   end
 end
 ```
 
-4. Load the modules (without running them) to generate our Crystal project skeleton.
-
-```bash
-bundle exec ruby crystalredis.rb
-```
-
-5. Add the missing Redis dependency to our shard.yml
-
-```yaml
-# filename:  crystalruby/src/shard.yml
-dependencies:
-  redis:
-    github: stefanwille/crystal-redis
-```
-
-```ruby
-# filename: main.cr
-require "redis"
-require "./generated/index"
-```
-
-```bash
-bundle exec crystalruby install
-```
-
-6. Compile and benchmark our new module in Ruby
+3. Compile and benchmark our new module in Ruby
 
 ```ruby
 # Filename: benchmark.rb
 # Let's compare the performance of our CrystalRedis module to the Ruby Redis gem
-require_relative "crystalredis"
+require 'crystalruby'
 require 'redis'
 require 'benchmark/ips'
+require 'debug'
+
+# For a high IPS single-threaded program, we can set the single_thread_mode to true for faster
+# FFI interop
+CrystalRuby.configure do |config|
+  config.single_thread_mode = true
+end
+
+module CrystalRedis
+
+  shard :redis, github: 'stefanwille/crystal-redis'
+
+  crystal do
+    CLIENT = Redis.new
+    def self.client
+      CLIENT
+    end
+  end
+
+  crystalize
+  def set(key: String, value: String)
+    client.set(key, value)
+  end
+
+  crystalize :string
+  def get(key: String)
+    client.get(key).to_s
+  end
+end
 
 Benchmark.ips do |x|
   rbredis = Redis.new
@@ -412,32 +628,18 @@ Benchmark.ips do |x|
     rbredis.get("hello")
   end
 end
+
 ```
 
-7. Run the benchmark
+4. Run the benchmark
 
 ```bash
 $ bundle exec ruby benchmark.rb
 ```
 
-### Output
-
-```bash
-
-#crystalredis wins! (Warm up during first run will be slow for crredis, due to first compilation)
-
-ruby 3.3.0 (2023-12-25 revision 5124f9ac75) [arm64-darwin22]
-Warming up --------------------------------------
-             crredis     1.946k i/100ms
-             rbredis     1.749k i/100ms
-Calculating -------------------------------------
-             crredis     22.319k (± 1.7%) i/s -    112.868k in   5.058448s
-             rbredis     16.861k (± 9.1%) i/s -     83.952k in   5.024941s
-```
-
 ## Release Builds
 
-You can control whether CrystalRuby builds in debug or release mode by setting following config option
+You can control whether crystalruby builds in debug or release mode by setting following config option
 
 ```ruby
 CrystalRuby.configure do |config|
@@ -482,14 +684,14 @@ E.g.
 
 ```ruby
 module Sleeper
-  crystalize [] => :void
+  crystalize
   def sleep_sync
-    sleep 2
+    sleep 2.seconds
   end
 
-  crystalize [] => :void, async: true
+  crystalize async: true
   def sleep_async
-    sleep 2
+    sleep 2.seconds
   end
 end
 ```
@@ -559,14 +761,7 @@ However, the abstraction it provides should remain simple, transparent, and easy
 
 It should support escape hatches to allow it to coexist with code that performs a more direct [FFI](https://github.com/ffi/ffi) integration to implement advanced functionality not supported by `crystalruby`.
 
-The library is currently in its infancy. Planned additions are:
-
-- Simple mixin/concern that utilises `FFI::Struct` for bi-directional passing of Ruby objects and Crystal objects (by value).
-- Install command to generate a sample build script, and supports build command (which simply verifies then invokes this script)
-- Call Ruby from Crystal using FFI callbacks (implement `.expose_to_crystal`)
-- Support long-lived synchronized objects (through use of synchronized memory arena to prevent GC).
-- Support for passing `crystalruby` types by reference (need to contend with GC).
-- Explore mechanisms to safely expose true parallelism using [FFI over Ractors](https://github.com/ffi/ffi/wiki/Ractors)
+The library is currently in its infancy.
 
 ## Installation
 

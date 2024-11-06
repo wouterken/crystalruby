@@ -5,14 +5,15 @@ require_relative "test_helper"
 class TestMultiLib < Minitest::Test
   def test_two_libs_one_module
     Object.const_set(:AdderLib, Module.new {})
+
     AdderLib.class_eval do
-      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder"
-      def add(a, b)
+      crystalize :int, async: false, lib: "adder"
+      def add(a: :int, b: :int)
         a + b
       end
 
-      crystalize [a: :int, b: :int] => :int, async: false, lib: "adder-2"
-      def add_v2(a, b)
+      crystalize :int, async: false, lib: "adder-2"
+      def add_v2(a: :int, b: :int)
         a + b
       end
     end
@@ -24,13 +25,13 @@ class TestMultiLib < Minitest::Test
     Object.const_set(:MathLib, Module.new {})
 
     MathLib.class_eval do
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math"
-      def add(a, b)
+      crystalize  :int, async: true, lib: "math"
+      def add(a: :int, b: :int)
         a + b
       end
 
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-2"
-      def add_v2(a, b)
+      crystalize :int, async: true, lib: "math-2"
+      def add_v2(a: :int, b: :int)
         a + b
       end
     end
@@ -38,13 +39,13 @@ class TestMultiLib < Minitest::Test
     assert MathLib.add(1, 2) == MathLib.add_v2(1, 2)
 
     MathLib.class_eval do
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-lib"
-      def mult(a, b)
+      crystalize :int, async: true, lib: "math-lib"
+      def mult(a: :int, b: :int)
         a + b
       end
 
-      crystalize [a: :int, b: :int] => :int, async: true, lib: "math-lib-2"
-      def mult_v2(a, b)
+      crystalize :int, async: true, lib: "math-lib-2"
+      def mult_v2(a: :int, b: :int)
         a + b
       end
     end
