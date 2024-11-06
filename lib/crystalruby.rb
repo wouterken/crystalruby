@@ -37,19 +37,25 @@ module CrystalRuby
   def check_crystal_ruby!
     return if system("which crystal > /dev/null 2>&1")
 
-    raise "Crystal executable not found. Please ensure Crystal is installed and in your PATH." \
-      "See https://crystal-lang.org/install/"
+    msg = "Crystal executable not found. Please ensure Crystal is installed and in your PATH. " \
+      "See https://crystal-lang.org/install/."
+
+    if config.crystal_missing_ignore
+      config.logger.error msg
+    else
+      raise msg
+    end
   end
 
   def check_config!
     return if config.crystal_src_dir
 
-    raise "Missing config option `crystal_src_dir`. \nProvide this inside crystalruby.yaml "\
+    raise "Missing config option `crystal_src_dir`. \nProvide this inside crystalruby.yaml " \
       "(run `bundle exec crystalruby init` to generate this file with detaults)"
   end
 
   %w[debug info warn error].each do |level|
-    define_method("log_#{level}") do |*msg|
+    define_method(:"log_#{level}") do |*msg|
       prefix = config.colorize_log_output ? "\e[33mcrystalruby\e[0m\e[90m [#{Thread.current.object_id}]\e[0m" : "[crystalruby] #{Thread.current.object_id}"
 
       config.logger.send(level, "#{prefix} #{msg.join(", ")}")

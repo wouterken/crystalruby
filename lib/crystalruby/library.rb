@@ -44,7 +44,7 @@ module CrystalRuby
       ].each do |dir|
         FileUtils.mkdir_p(dir)
       end
-      IO.write  main_file, "require \"./#{config.crystal_codegen_dir}/index\"\n" unless File.exist?(main_file)
+      IO.write main_file, "require \"./#{config.crystal_codegen_dir}/index\"\n" unless File.exist?(main_file)
 
       return if File.exist?(shard_file)
 
