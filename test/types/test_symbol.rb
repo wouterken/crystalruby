@@ -3,7 +3,7 @@
 require_relative "../test_helper"
 
 class TestSymbol < Minitest::Test
-  crystalize
+  crystallize
   def match(a: Symbol(:green, :red, :blue), returns: Symbol(:orange, :yellow, :other))
     case a
     when :green then :orange
@@ -12,7 +12,7 @@ class TestSymbol < Minitest::Test
     end
   end
 
-  crystalize raw: true
+  crystallize raw: true
   def count_acknowledgement_statuses(
     statuses: Array(Symbol(%i[acknowledged unacknowledged unknown])),
     returns: Hash(Symbol(%i[acknowledged unacknowledged unknown]), Int32)
@@ -28,7 +28,7 @@ class TestSymbol < Minitest::Test
   StatusEnum = CRType { Symbol(:active, :inactive) }
   ItemWithStatus = CRType { NamedTuple(status: StatusEnum) }
 
-  crystalize
+  crystallize
   def is_active?(status: ItemWithStatus, returns: Bool)
     status.status == :active
   end

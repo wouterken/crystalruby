@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 class TestRubyWrappedCrystalizedMethods < Minitest::Test
   module MyModule
-    crystalize ->{ :int32 } do |a, b|
+    crystallize ->{ :int32 } do |a, b|
       result = super(a.to_i, b.to_i)
       result + 1
     end

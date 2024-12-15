@@ -16,12 +16,12 @@ class TestTime < Minitest::Test
     assert (tm.to_f - Time.now.to_f) >= -1
   end
 
-  crystalize
+  crystallize
   def time_diff(time1: Time, time2: Time, returns: Float64)
     (time1 - time2).to_f
   end
 
-  crystalize
+  crystallize
   def one_day_from(time: Time, returns: Time)
     time + (24 * 60 * 60).seconds
   end

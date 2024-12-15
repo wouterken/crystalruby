@@ -80,6 +80,16 @@ module CrystalRuby
         end
       end
 
+      def self.named_type_expr
+        if !inner_types
+          "::#{name || typename}"
+        elsif !inner_keys
+          "::#{name || typename}(#{inner_types.map(&:named_type_expr).join(", ")})"
+        else
+          "::#{name || typename}(#{inner_keys.zip(inner_types).map { |k, v| "#{k}: #{v.named_type_expr}" }.join(", ")})"
+        end
+      end
+
       def self.valid_cast?(raw)
         raw.is_a?(self) || convert_if.any? { |type| raw.is_a?(type) }
       end
@@ -94,12 +104,12 @@ module CrystalRuby
       end
 
       def self.crystal_class_name
-        name || native_type_expr.split(",").join("_and_")
-                                .split("|").join("_or_")
-                                .split("(").join("_of_")
-                                .gsub(/[^a-zA-Z0-9_]/, "")
-                                .split("_")
-                                .map(&:capitalize).join << "_#{type_digest[0..6]}"
+        name || named_type_expr.split(",").join("_and_")
+                               .split("|").join("_or_")
+                               .split("(").join("_of_")
+                               .gsub(/[^a-zA-Z0-9_]/, "")
+                               .split("_")
+                               .map(&:capitalize).join << "_#{type_digest[0..6]}"
       end
 
       def self.base_crystal_class_name

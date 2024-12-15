@@ -37,12 +37,12 @@ module CrystalRuby
     end
 
     # This is where we write/overwrite the class and instance methods
-    # with their crystalized equivalents.
+    # with their crystallized equivalents.
     # We also perform JIT compilation and JIT attachment of the FFI functions.
     # Crystalized methods can be redefined without restarting, if running in a live-reloading environment.
     # If they are redefined with a different function body, the new function body
     # will result in a new digest and the FFI function will be recompiled and reattached.
-    def define_crystalized_methods!(lib)
+    def define_crystallized_methods!(lib)
       func = self
       receivers = instance_method ? [owner] : [owner, owner.singleton_class]
       receivers.each do |receiver|
@@ -109,9 +109,9 @@ module CrystalRuby
       Reactor.schedule_work!(lib, :"register_#{name.to_s.gsub("?", "q").gsub("=", "eq").gsub("!", "bang")}_callback", @callback_func, :void, blocking: true, async: false)
     end
 
-    # Attaches the crystalized FFI functions to their related Ruby modules and classes.
-    # If a wrapper block has been passed to the crystalize function,
-    # then the we also wrap the crystalized function using a prepended Module.
+    # Attaches the crystallized FFI functions to their related Ruby modules and classes.
+    # If a wrapper block has been passed to the crystallize function,
+    # then the we also wrap the crystallized function using a prepended Module.
     def attach_ffi_func!
       argtypes = ffi_types
       rettype = ffi_ret_type

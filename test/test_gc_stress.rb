@@ -8,22 +8,22 @@ class TestGCStress < Minitest::Test
       @@leaked_memory = ""
     end
 
-    crystalize async: true, lib: "gc_stress_v1"
+    crystallize async: true, lib: "gc_stress_v1"
     def gc_stress_v1(mb: :float)
       "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize async: true, lib: "gc_stress_v1"
+    crystallize async: true, lib: "gc_stress_v1"
     def gc_leak_v1(mb: :float)
       @@leaked_memory += "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize lib: "gc_stress_v1"
+    crystallize lib: "gc_stress_v1"
     def gc_free_v1
       @@leaked_memory = ""
     end
 
-    crystalize async: true, lib: "gc_stress_v1"
+    crystallize async: true, lib: "gc_stress_v1"
     def trigger_gc_v1
       GC.collect
     end
@@ -32,22 +32,22 @@ class TestGCStress < Minitest::Test
       @@leaked_memory = ""
     end
 
-    crystalize lib: "gc_stress_v2"
+    crystallize lib: "gc_stress_v2"
     def gc_stress_v2(mb: :float)
       "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize async: true, lib: "gc_stress_v2"
+    crystallize async: true, lib: "gc_stress_v2"
     def trigger_gc_v2
       GC.collect
     end
 
-    crystalize lib: "gc_stress_v2"
+    crystallize lib: "gc_stress_v2"
     def gc_leak_v2(mb: :float)
       @@leaked_memory += "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize lib: "gc_stress_v2"
+    crystallize lib: "gc_stress_v2"
     def gc_free_v2
       @@leaked_memory = ""
     end

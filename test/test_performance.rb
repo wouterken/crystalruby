@@ -7,7 +7,7 @@ require "crystalruby"
 class TestPerformance < Minitest::Test
   module PrimeCounter
 
-    crystalize
+    crystallize
     def count_primes_upto_cr n: :int32, returns: :int32
       (2..n).each.count do |i|
         is_prime = true

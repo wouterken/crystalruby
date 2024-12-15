@@ -18,7 +18,7 @@ class TestBool < Minitest::Test
     assert_equal bl, false
   end
 
-  crystalize
+  crystallize
   def negate_bool(value: Bool, returns: Bool)
     !value
   end

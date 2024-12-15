@@ -3,9 +3,21 @@
 require_relative "test_helper"
 
 class TestCrystalizeDSL < Minitest::Test
+
+  def test_cryalize_backcompat
+    Adder.class_eval do
+      crystalize ->{ :int }, async: false
+      def cryatlize_mult(a: :int, b: :int)
+        a * b
+      end
+    end
+
+    assert Adder.cryatlize_mult(4, 2) == 8
+  end
+
   def test_simple_adder
     Adder.class_eval do
-      crystalize :int, async: false
+      crystallize :int, async: false
       def add(a: :int, b: :int)
         a + b
       end
@@ -16,7 +28,7 @@ class TestCrystalizeDSL < Minitest::Test
 
   def test_reopen
     Adder.class_eval do
-      crystalize ->{ :int }, async: false
+      crystallize ->{ :int }, async: false
       def mult(a: :int, b: :int)
         a * b
       end
@@ -27,7 +39,7 @@ class TestCrystalizeDSL < Minitest::Test
 
   def test_string_ops
     Adder.class_eval do
-      crystalize async: false
+      crystallize async: false
       def atsrev(a: :string, b: :string, returns: :string)
         (a + b).reverse
       end
@@ -35,8 +47,8 @@ class TestCrystalizeDSL < Minitest::Test
 
     assert Adder.atsrev("one", "two") == "owteno"
   end
-  
-  crystalize
+
+  crystallize
   def takes_two_arguments(a: Int32, b: Int32, yield: Proc(Int32), returns: Int32)
     yield 4
     3
@@ -46,7 +58,7 @@ class TestCrystalizeDSL < Minitest::Test
     assert_raises(ArgumentError) { takes_two_arguments(1) }
     assert_raises(ArgumentError) { takes_two_arguments(1, 2, 3, 4) }
     assert_equal(
-      takes_two_arguments(1, 2) do 
+      takes_two_arguments(1, 2) do
       end, 3
     )
   end
@@ -56,19 +68,19 @@ class TestCrystalizeDSL < Minitest::Test
   end
 
   include CrystalizeSyntax
-  def test_crystalize_syntax
+  def test_crystallize_syntax
 
     CrystalizeSyntax.class_eval do
 
 
-      crystalize lib: 'multi-compile', raw: true
+      crystallize lib: 'multi-compile', raw: true
       def sub_cust(a: Int32, b: Int64 | String, returns: Int32)
         "
         3
         "
       end
 
-      crystalize lib: 'multi-compile', raw: true
+      crystallize lib: 'multi-compile', raw: true
       def sub_cust_heredoc(a: Int32, b: Int64 | String, returns: Int32)
 
       <<~CRYSTAL
@@ -76,20 +88,20 @@ class TestCrystalizeDSL < Minitest::Test
       CRYSTAL
       end
 
-      crystalize ->{ Int32 }, lib: 'multi-compile'
+      crystallize ->{ Int32 }, lib: 'multi-compile'
       def sub a: Int32, b: Int32
         a - b
       end
 
-      crystalize ->{ Int32 }, lib: 'multi-compile', raw: true
+      crystallize ->{ Int32 }, lib: 'multi-compile', raw: true
       def sub2(a: Int32, b: Int32) = "a - b"
 
-      crystalize ->{ Int32 }, lib: 'multi-compile', raw: false
+      crystallize ->{ Int32 }, lib: 'multi-compile', raw: false
       def sub3(a: Int32, b: Int32) = a - b
 
       # Unusual spacing is intentional to
       # test method parsing.
-      crystalize ->{ Int32 }, lib: 'multi-compile'
+      crystallize ->{ Int32 }, lib: 'multi-compile'
       def add \
           a: :int,
 
@@ -100,7 +112,7 @@ class TestCrystalizeDSL < Minitest::Test
       end
 
 
-      crystalize :int, lib: 'multi-compile'
+      crystallize :int, lib: 'multi-compile'
       def add_simple(a: :int, b: :int)
         a + b
       end

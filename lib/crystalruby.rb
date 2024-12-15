@@ -3,7 +3,7 @@
 require "ffi"
 require "digest"
 require "fileutils"
-require "syntax_tree"
+require "prism"
 require "pathname"
 
 require_relative "crystalruby/config"

@@ -4,13 +4,13 @@ require_relative "test_helper"
 
 class TestExceptionHandling < Minitest::Test
   module Exceptional
-    crystalize
+    crystallize
     def throws(a: :int32, b: :int32, returns: :int32)
       raise "Exception"
       a + b
     end
 
-    crystalize
+    crystallize
     def for_type_error(a: Int32)
       puts "Expecting a Hash(String, String)"
     end

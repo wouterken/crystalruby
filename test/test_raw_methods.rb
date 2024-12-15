@@ -6,7 +6,7 @@ class TestRawMethods < Minitest::Test
   def test_raw_methods
 
     Adder.class_eval do
-      crystalize :int32, raw: true
+      crystallize :int32, raw: true
       def add_raw(a: :int, b: :int)
         <<~CRYSTAL
           c = 0_u64
@@ -14,7 +14,7 @@ class TestRawMethods < Minitest::Test
         CRYSTAL
       end
 
-      crystalize :int32, raw: true
+      crystallize :int32, raw: true
       def add_raw_endless(a: :int, b: :int) = "c = 0_u64
         a + b + c"
     end

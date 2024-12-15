@@ -59,12 +59,12 @@ class TestTuple < Minitest::Test
     assert_equal CrystalRuby::Types::Type.live_objects, 0
   end
 
-  crystalize
+  crystallize
   def accepts_nested_tuple(input: TupNested, returns: Bool)
     true
   end
 
-  crystalize raw: true
+  crystallize raw: true
   def returns_nested_tuple(returns: TupNested)
     %{
       inner = { complex: { 1 => 3 }, age: 25, name: "John" }
@@ -83,7 +83,7 @@ class TestTuple < Minitest::Test
     assert_equal returns_nested_tuple, val
   end
 
-  crystalize raw: true
+  crystallize raw: true
   def returns_simple_tuple(returns: TupPrimitive)
     %{
       TupPrimitive.new({18, 43})
@@ -94,14 +94,14 @@ class TestTuple < Minitest::Test
     assert_equal returns_simple_tuple, TupPrimitive[18, 43]
   end
 
-  crystalize
+  crystallize
   def mutates_tuple_primitive!(input: TupPrimitive, returns: TupPrimitive)
     input[0] = 42
     input[1] = 79
     input
   end
 
-  crystalize
+  crystallize
   def doubles_tuple_values!(input: TupPrimitive)
     input[0] = input[0].not_nil! * 2
     input[1] = input[1].not_nil! * 2
@@ -117,7 +117,7 @@ class TestTuple < Minitest::Test
     assert_equal tp, TupPrimitive[198, 316]
   end
 
-  crystalize
+  crystallize
   def mutates_tuple_complex!(input: TupNested, returns: TupNested)
     input[0].not_nil!.complex = { 1 => 42 }
     input[0].not_nil!.age = 79
@@ -130,7 +130,7 @@ class TestTuple < Minitest::Test
     assert_equal tp, TupNested[{ complex: { 1 => 42 }, age: 79, name: "John" }]
   end
 
-  crystalize
+  crystallize
   def mutates_tuple_nested!(input: TupNested, returns: TupNested)
     puts input[0].not_nil!.complex.class
     input[0].not_nil!.complex[1] = 42

@@ -11,8 +11,8 @@ crystal do
   end
 end
 
-crystalize :int, raw: true
-def top_level_crystalized_method
+crystallize :int, raw: true
+def top_level_crystallized_method
   %Q{ 88 + 12 }
 end
 
@@ -21,14 +21,14 @@ def top_level_ruby_method
   33
 end
 
-crystalize ->{ Int32 }
+crystallize ->{ Int32 }
 def call_top_level_ruby_method
   top_level_ruby_method
 end
 
 class TestTopLevelCrystal < Minitest::Test
   module AccessTopLevelCrystal
-    crystalize :string
+    crystallize :string
     def access_top_level_constant
       top_level_method
     end
@@ -36,7 +36,7 @@ class TestTopLevelCrystal < Minitest::Test
 
   def test_top_level_crystal
     assert AccessTopLevelCrystal.access_top_level_constant == "At the very top!"
-    assert top_level_crystalized_method == 100
+    assert top_level_crystallized_method == 100
   end
 
   def test_top_level_exposed_ruby

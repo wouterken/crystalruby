@@ -4,12 +4,12 @@ require_relative "test_helper"
 require "benchmark"
 class TestAsyncMethods < Minitest::Test
   module Sleeper
-    crystalize async: true
+    crystallize async: true
     def sleep_async(a: :float)
       sleep(a.seconds)
     end
 
-    crystalize async: false
+    crystallize async: false
     def sleep_sync(a: :float)
       sleep(a.seconds)
     end
@@ -38,7 +38,7 @@ class TestAsyncMethods < Minitest::Test
     assert total_sleep_time < 0.5
   end
 
-  crystalize async: true
+  crystallize async: true
   def callback_ruby(returns: Int32)
     ruby_callback() + ruby_callback()
   end
@@ -52,7 +52,7 @@ class TestAsyncMethods < Minitest::Test
     assert_equal callback_ruby, 20
   end
 
-  crystalize async: true
+  crystallize async: true
   def yield_to_ruby(yield: Proc(Int32, Nil))
     yield 10
     yield 20

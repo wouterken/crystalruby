@@ -3,7 +3,7 @@
 require_relative "../test_helper"
 
 class TestProcAsync < Minitest::Test
-  crystalize async: true
+  crystallize async: true
   def crystal_method_takes_bool_int32_closure(yield: Proc(Bool, Int32), returns: Int32)
     yield true
   end
@@ -24,7 +24,7 @@ class TestProcAsync < Minitest::Test
     yield true
   end
 
-  crystalize
+  crystallize
   def crystal_ruby_method_invoker(returns: Int32)
     crystal_method_takes_bool_int32_closure do |_input|
       15
@@ -37,7 +37,7 @@ class TestProcAsync < Minitest::Test
 end
 
 class TestProcSync < Minitest::Test
-  crystalize async: false
+  crystallize async: false
   def crystal_method_takes_bool_int32_closure(yield: Proc(Bool, Int32), returns: Int32)
     yield true
   end
@@ -58,7 +58,7 @@ class TestProcSync < Minitest::Test
     yield true
   end
 
-  crystalize
+  crystallize
   def crystal_ruby_method_invoker(returns: Int32)
     crystal_method_takes_bool_int32_closure do |_input|
       15

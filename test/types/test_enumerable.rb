@@ -5,12 +5,12 @@ require_relative "../test_helper"
 class TestEnumerable < Minitest::Test
   TestComplexArrayType = CRType { Array(Hash(Int32, Int32)) }
 
-  crystalize
+  crystallize
   def cr_non_destructive_map(array: TestComplexArrayType, returns: Array(Int32))
     array.map { |x| x.values.max }
   end
 
-  crystalize
+  crystallize
   def cr_desctructive_map(array: TestComplexArrayType)
     array.map! { |x| x.transform_values { |v| v * 2 } }
   end
@@ -25,7 +25,7 @@ class TestEnumerable < Minitest::Test
     assert_equal test_array, [{ 1 => 6 }, { 2 => 8 }, { 3 => 10 }]
   end
 
-  crystalize
+  crystallize
   def find_hash_with_key(array: TestComplexArrayType, key: Int32, returns: Hash(Int32, Int32))
     array.find { |x| x.keys.includes?(key) }.not_nil!
   end
@@ -36,7 +36,7 @@ class TestEnumerable < Minitest::Test
     assert_equal found, { 3 => 5 }
   end
 
-  crystalize
+  crystallize
   def group_by_max_value(array: TestComplexArrayType, returns: Hash(Int32, Array(Hash(Int32, Int32))))
     array.group_by { |x| x.values.max }.not_nil!
   end
@@ -47,7 +47,7 @@ class TestEnumerable < Minitest::Test
     assert_equal found, { 3 => [{ 1 => 3, 8 => 2 }], 5 => [{ 2 => 4, 1 => 5 }, { 3 => 5 }], 2 => [{ 5 => 2 }] }
   end
 
-  crystalize
+  crystallize
   def reduce_sum_values(array: TestComplexArrayType, returns: Int32)
     array.reduce(0) { |acc, x| acc + x.values.sum }
   end

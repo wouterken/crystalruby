@@ -18,7 +18,7 @@ class TestArray < Minitest::Test
     assert_equal CrystalRuby::Types::Type.live_objects, 0
   end
 
-  crystalize
+  crystallize
   def double_list_of_ints!(a: IntArrayType)
     a.map! { |x| x * 2 }
   end
@@ -29,7 +29,7 @@ class TestArray < Minitest::Test
     assert ia == [2, 4, 6, 8, 10]
   end
 
-  crystalize
+  crystallize
   def double_nested_list_of_ints!(a: NestedArrayType)
     a.map! { |b| b.map! { |c| c * 2 } }
   end
@@ -40,7 +40,7 @@ class TestArray < Minitest::Test
     assert ia == [[2, 4, 6, 8, 10]]
   end
 
-  crystalize
+  crystallize
   def mutate_and_access_named_types!(a: NestedArrayType, value: Int32, returns: Int32)
     a[0][0] = value
     a[0][1] = 43
@@ -55,7 +55,7 @@ class TestArray < Minitest::Test
     assert ia == [[42, 43, 3, 4, 5]]
   end
 
-  crystalize
+  crystallize
   def mutate_and_access_anonymous!(a: Array(Array(Bool)), value: Bool, returns: Bool)
     a[0][0] = value
     a[0][1] = true
@@ -69,7 +69,7 @@ class TestArray < Minitest::Test
     assert mutate_and_access_anonymous!([[false, false, false]], true) == true
   end
 
-  crystalize
+  crystallize
   def mutate_and_access_nil_array!(a: Array(Array(Nil)), value: Nil, returns: Nil)
     a[0][0] = value
     a[0][1] = nil
@@ -84,7 +84,7 @@ class TestArray < Minitest::Test
   end
 
   ColorSymbol = CRType { Symbol(:green, :blue, :orange) }
-  crystalize
+  crystallize
   def mutate_and_access_symbol_array!(a: Array(Array(ColorSymbol)), value: ColorSymbol, returns: ColorSymbol)
     a[0][0] = :orange
     a[0][1] = :green
@@ -98,7 +98,7 @@ class TestArray < Minitest::Test
     assert mutate_and_access_symbol_array!([%i[orange blue green]], :orange) == :green
   end
 
-  crystalize
+  crystallize
   def mutate_and_access_time_array!(a: Array(Array(Time)), value: Time, returns: Time)
     a[0][0] = Time.local
     a[0][1] = Time.local - 100.seconds
@@ -122,7 +122,7 @@ class TestArray < Minitest::Test
     )
   end
 
-  crystalize
+  crystallize
   def crystal_mutate_complex_array!(array: ComplexArray)
     array[0] = { name: "Alice", age: 30 }
     array << { name: "Bob", age: 25 }
@@ -150,7 +150,7 @@ class TestArray < Minitest::Test
   end
   end
 
-  crystalize
+  crystallize
   def crystal_mutate_simple_array!(array: SimpleArray)
     array[0] = 4
     array << 8
@@ -170,7 +170,7 @@ class TestArray < Minitest::Test
   end
   end
 
-  crystalize
+  crystallize
   def crystal_mutate_union_array!(array: UnionArray)
     array[0] = 4
     array[2] = nil

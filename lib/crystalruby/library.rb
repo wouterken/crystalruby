@@ -61,7 +61,7 @@ module CrystalRuby
 
     # Generates and stores a reference to a new CrystalRuby::Function
     # and triggers the generation of the crystal code. (See write_chunk)
-    def crystalize_method(method, args, returns, function_body, async, &block)
+    def crystallize_method(method, args, returns, function_body, async, &block)
       CR_ATTACH_MUX.synchronize do
         methods.each_value(&:unattach!)
         method_key = "#{method.owner.name}/#{method.name}"
@@ -74,7 +74,7 @@ module CrystalRuby
           lib: self,
           &block
         ).tap do |func|
-          func.define_crystalized_methods!(self)
+          func.define_crystallized_methods!(self)
           func.register_custom_types!(self)
           write_chunk(func.owner_name, method.name, func.chunk)
         end
@@ -110,7 +110,7 @@ module CrystalRuby
       src_dir / "shard.yml"
     end
 
-    def crystalize_chunk(mod, chunk_name, body)
+    def crystallize_chunk(mod, chunk_name, body)
       write_chunk(mod.respond_to?(:name) ? name : "main", chunk_name, body)
     end
 
@@ -271,6 +271,7 @@ module CrystalRuby
     end
 
     def write_chunk(module_name, chunk_name, body)
+      module_name = module_name.gsub("::", "__MOD__")
       chunks.delete_if { |chnk| chnk[:module_name] == module_name && chnk[:chunk_name] == chunk_name }
       chunk = { module_name: module_name, chunk_name: chunk_name, body: body }
       chunks << chunk

@@ -58,12 +58,12 @@ class TestNamedTuple < Minitest::Test
     assert_equal CrystalRuby::Types::Type.live_objects, 0
   end
 
-  crystalize
+  crystallize
   def accepts_nested_tuple(input: NamedTupNested, returns: Bool)
     true
   end
 
-  crystalize
+  crystallize
   def returns_nested_tuple(returns: NamedTupNested)
     NamedTupNested.new(
       { nested: { complex: { 1 => 3 }, age: 25, name: "John" } }
@@ -81,7 +81,7 @@ class TestNamedTuple < Minitest::Test
     assert_equal returns_nested_tuple, val
   end
 
-  crystalize
+  crystallize
   def returns_simple_tuple(returns: NamedTupPrimitive)
     NamedTupPrimitive.new(
       { age: 18, count: 43 }

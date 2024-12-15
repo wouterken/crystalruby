@@ -1,14 +1,14 @@
 module CrystalRuby
   module Adapter
-    # Use this method to annotate a Ruby method that should be crystalized.
+    # Use this method to annotate a Ruby method that should be crystallized.
     # Compilation and attachment of the method is done lazily.
     # You can force compilation by calling `CrystalRuby.compile!`
-    # It's important that all code using crystalized methods is
+    # It's important that all code using crystallized methods is
     # loaded before any manual calls to compile.
     #
     # E.g.
     #
-    # crystalize :int32
+    # crystallize :int32
     # def add(a: :int32, b: :int32)
     #  a + b
     # end
@@ -16,7 +16,7 @@ module CrystalRuby
     # Pass `raw: true` to pass Raw crystal code to the compiler as a string instead.
     # (Useful for cases where the Crystal method body is not valid Ruby)
     # E.g.
-    # crystalize :int32, raw: true
+    # crystallize :int32, raw: true
     # def add(a: :int32, b: :int32)
     #   <<~CRYSTAL
     #   a + b
@@ -36,9 +36,9 @@ module CrystalRuby
     # @option options [Boolean] :async (false) Mark the method as async (allows multiplexing).
     # @option options [String] :lib ("crystalruby") The name of the library to compile the Crystal code into.
     # @option options [Proc] :block An optional wrapper Ruby block that wraps around any invocations of the crystal code
-    def crystalize( returns=:void, raw: false, async: false, lib: "crystalruby", &block)
+    def crystallize( returns=:void, raw: false, async: false, lib: "crystalruby", &block)
       (self == TOPLEVEL_BINDING.receiver ? Object : self).instance_eval do
-        @crystalize_next = {
+        @crystallize_next = {
           raw: raw,
           async: async,
           returns: returns,
@@ -48,8 +48,11 @@ module CrystalRuby
       end
     end
 
+    # Alias for `crystallize`
+    alias :crystalize :crystallize
+
     # Exposes a Ruby method to one or more Crystal libraries.
-    # Type annotations follow the same rules as the `crystalize` method, but are
+    # Type annotations follow the same rules as the `crystallize` method, but are
     # applied in reverse.
     # @param returns The return type of the method. Optional (defaults to :void).
     # @param [Hash] options The options hash.
@@ -73,7 +76,7 @@ module CrystalRuby
 
     # Use this method to define inline Crystal code that does not need to be bound to a Ruby method.
     # This is useful for defining classes, modules, performing set-up tasks etc.
-    # See: docs for .crystalize to understand the `raw` and `lib` parameters.
+    # See: docs for .crystallize to understand the `raw` and `lib` parameters.
     def crystal(raw: false, lib: "crystalruby", &block)
       inline_crystal_body = respond_to?(:name) ? Template::InlineChunk.render(
         {
@@ -84,7 +87,7 @@ module CrystalRuby
         }) :
         SourceReader.extract_source_from_proc(block, raw: raw)
 
-      CrystalRuby::Library[lib].crystalize_chunk(
+      CrystalRuby::Library[lib].crystallize_chunk(
         self,
         Digest::MD5.hexdigest(inline_crystal_body),
         inline_crystal_body
@@ -101,29 +104,29 @@ module CrystalRuby
 
     private
 
-    # We trigger attaching of crystalized instance methods here.
-    # If a method is added after a crystalize annotation we assume it's the target of the crystalize annotation.
+    # We trigger attaching of crystallized instance methods here.
+    # If a method is added after a crystallize annotation we assume it's the target of the crystallize annotation.
     # @param [Symbol] method_name The name of the method being added.
     def method_added(method_name)
-      define_crystalized_method(instance_method(method_name)) if should_crystalize_next?
+      define_crystallized_method(instance_method(method_name)) if should_crystallize_next?
       expose_ruby_method_to_crystal(instance_method(method_name)) if should_expose_next?
       super
     end
 
-    # We trigger attaching of crystalized class methods here.
-    # If a method is added after a crystalize annotation we assume it's the target of the crystalize annotation.
+    # We trigger attaching of crystallized class methods here.
+    # If a method is added after a crystallize annotation we assume it's the target of the crystallize annotation.
     # @note This method is called when a method is added to the singleton class of the object.
     # @param [Symbol] method_name The name of the method being added.
     def singleton_method_added(method_name)
-      define_crystalized_method(singleton_method(method_name)) if should_crystalize_next?
+      define_crystallized_method(singleton_method(method_name)) if should_crystallize_next?
       expose_ruby_method_to_crystal(singleton_method(method_name)) if should_expose_next?
       super
     end
 
-    # Helper method to determine if the next method added should be crystalized.
-    # @return [Boolean] True if the next method added should be crystalized.
-    def should_crystalize_next?
-      defined?(@crystalize_next) && @crystalize_next
+    # Helper method to determine if the next method added should be crystallized.
+    # @return [Boolean] True if the next method added should be crystallized.
+    def should_crystallize_next?
+      defined?(@crystallize_next) && @crystallize_next
     end
 
     # Helper method to determine if the next method added should be exposed to Crystal libraries.
@@ -161,7 +164,7 @@ module CrystalRuby
       end
     end
 
-    # We attach crystalized class methods here.
+    # We attach crystallized class methods here.
     # This function is responsible for
     # - Generating the Crystal source code
     # - Overwriting the method and class methods by the same name in the caller.
@@ -169,20 +172,21 @@ module CrystalRuby
     # - We also optionally prepend a block (if given) to the owner, to allow Ruby code to wrap around Crystal code.
     # @param [Symbol] method_name The name of the method being added.
     # @param [UnboundMethod] method The method being added.
-    def define_crystalized_method(method)
-      CrystalRuby.log_debug("Defining crystalized method #{name}.#{method.name}")
+    def define_crystallized_method(method)
+      CrystalRuby.log_debug("Defining crystallized method #{name}.#{method.name}")
 
-      returns, block, async, lib, raw = @crystalize_next.values_at(:returns, :block, :async, :lib, :raw)
-      @crystalize_next = nil
+      returns, block, async, lib, raw = @crystallize_next.values_at(:returns, :block, :async, :lib, :raw)
+      @crystallize_next = nil
 
       args, source = SourceReader.extract_args_and_source_from_method(method, raw: raw)
 
       # We can safely claim the `yield` argument name for typing the yielded block
       # because this is an illegal identifier in Crystal anyway.
       args[:__yield_to] = args.delete(:yield) if args[:yield]
+
       returns = args.delete(:returns) if args[:returns] && returns == :void
 
-      CrystalRuby::Library[lib].crystalize_method(
+      CrystalRuby::Library[lib].crystallize_method(
         method,
         args,
         returns,

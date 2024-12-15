@@ -1,11 +1,11 @@
 PATH
   remote: .
   specs:
-    crystalruby (0.3.0)
+    crystalruby (0.3.1)
       digest
       ffi
       fileutils
-      syntax_tree
+      prism
 
 GEM
   remote: https://rubygems.org/
@@ -35,7 +35,7 @@ GEM
     parser (3.3.0.5)
       ast (~> 2.4.1)
       racc
-    prettier_print (1.2.1)
+    prism (1.2.0)
     psych (5.1.2)
       stringio
     racc (1.7.3)
@@ -62,8 +62,6 @@ GEM
       parser (>= 3.3.0.4)
     ruby-progressbar (1.13.0)
     stringio (3.1.0)
-    syntax_tree (6.2.0)
-      prettier_print (>= 1.2.0)
     unicode-display_width (2.5.0)
 
 PLATFORMS

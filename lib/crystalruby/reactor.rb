@@ -61,15 +61,16 @@ module CrystalRuby
     end
 
     def await_result!
-      mux, cond = thread_conditions.values_at(:mux, :cond)
-      cond.wait(mux)
-      if error = thread_conditions[:error]
-        combined_backtrace = error.backtrace[0..(error.backtrace.index{|m| m.include?('call_blocking_function')} || 2) - 3] + caller[5..-1]
-        error.set_backtrace(combined_backtrace)
-        raise error
+      mux, cond, result, err = thread_conditions.values_at(:mux, :cond, :result, :error)
+      cond.wait(mux) unless (result || err)
+      result, err, thread_conditions[:result], thread_conditions[:error] = thread_conditions.values_at(:result, :error)
+      if err
+        combined_backtrace = err.backtrace[0..(err.backtrace.index{|m| m.include?('call_blocking_function')} || 2) - 3] + caller[5..-1]
+        err.set_backtrace(combined_backtrace)
+        raise err
       end
 
-      thread_conditions[:result]
+      result
     end
 
     def halt_loop!
@@ -90,7 +91,10 @@ module CrystalRuby
         @main_thread_id = Thread.current.object_id
         CrystalRuby.log_debug("Starting reactor")
         CrystalRuby.log_debug("CrystalRuby initialized")
-        REACTOR_QUEUE.pop[] while true
+        while true
+          handler, *args = REACTOR_QUEUE.pop
+          send(handler, *args)
+        end
       rescue StopReactor => e
       rescue StandardError => e
         CrystalRuby.log_error "Error: #{e}"
@@ -107,6 +111,29 @@ module CrystalRuby
       nil
     end
 
+    def invoke_async!(receiver, op_name, *args, thread_id, callback, lib)
+      receiver.send(op_name, *args, thread_id, callback)
+      yield!(lib: lib, time: 0)
+    end
+
+    def invoke_blocking!(receiver, op_name, *args, tvars)
+      tvars[:error] = nil
+      begin
+        tvars[:result] = receiver.send(op_name, *args)
+      rescue StopReactor => e
+        tvars[:cond].signal
+        raise
+      rescue StandardError => e
+        tvars[:error] = e
+      end
+      tvars[:cond].signal
+    end
+
+    def invoke_await!(receiver, op_name, *args, lib)
+      outstanding_jobs = receiver.send(op_name, *args)
+      yield!(lib: lib, time: 0) unless outstanding_jobs == 0
+    end
+
     def schedule_work!(receiver, op_name, *args, return_type, blocking: true, async: true, lib: nil)
       if @single_thread_mode || (Thread.current.object_id == @main_thread_id && op_name != :yield)
         unless Thread.current.object_id == @main_thread_id
@@ -121,34 +148,9 @@ module CrystalRuby
       tvars[:mux].synchronize do
         REACTOR_QUEUE.push(
           case true
-          when async
-            lambda {
-              receiver.send(
-                op_name, *args, tvars[:thread_id],
-                CALLBACKS_MAP[return_type]
-              )
-              yield!(lib: lib, time: 0)
-            }
-          when blocking
-            lambda {
-              tvars[:error] = nil
-              should_halt = false
-              begin
-                result = receiver.send(op_name, *args)
-              rescue StopReactor => e
-                should_halt = true
-              rescue StandardError => e
-                tvars[:error] = e
-              end
-              tvars[:result] = result unless tvars[:error]
-              tvars[:cond].signal
-              raise StopReactor if should_halt
-            }
-          else
-            lambda {
-              outstanding_jobs = receiver.send(op_name, *args)
-              yield!(lib: lib, time: 0) unless outstanding_jobs == 0
-            }
+          when async then [:invoke_async!, receiver, op_name, *args, tvars[:thread_id], CALLBACKS_MAP[return_type], lib]
+          when blocking then [:invoke_blocking!, receiver, op_name, *args, tvars]
+          else [:invoke_await!, receiver, op_name, *args, lib]
           end
         )
         return await_result! if blocking

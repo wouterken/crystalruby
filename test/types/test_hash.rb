@@ -134,7 +134,7 @@ class TestHash < Minitest::Test
   end
 
 
-  crystalize
+  crystallize
   def crystal_mutate_complex_hash!(hash: ComplexHash)
     hash[{ name: "John", age: 25 }][0] = { name: "Alice", age: 18 }
     hash[{ name: "John", age: 25 }][1] = { name: "Bob", age: 30 }
@@ -155,7 +155,7 @@ class TestHash < Minitest::Test
   class SimpleHash < CRType { Hash(String, Int32) }
   end
 
-  crystalize
+  crystallize
   def crystal_mutate_simple_hash!(hash: SimpleHash)
     hash["first"] = 10
     hash["second"] = 20
@@ -176,7 +176,7 @@ class TestHash < Minitest::Test
   class UnionHash < CRType { Hash(String, Nil | Int32) }
   end
 
-  crystalize
+  crystallize
   def crystal_mutate_union_hash!(hash: UnionHash)
     hash["first"] = 10
     hash["second"] = nil

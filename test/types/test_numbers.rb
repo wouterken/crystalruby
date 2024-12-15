@@ -14,22 +14,22 @@ class TestNumbers < Minitest::Test
     assert Int32Class.new(0).primitive?
   end
 
-  crystalize
+  crystallize
   def can_take_anon_int32(value: Int32)
     value * 2
   end
 
-  crystalize
+  crystallize
   def can_take_named_int32(value: Int32Class)
     value * 2
   end
 
-  crystalize
+  crystallize
   def can_return_named_int32(value: UInt64, returns: Int32Class)
     return (value * 2).to_i32
   end
 
-  crystalize
+  crystallize
   def can_return_anonymous_int32(value: UInt64, returns: Int32)
     return (value * 2).to_i32
   end

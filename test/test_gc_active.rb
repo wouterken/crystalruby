@@ -8,17 +8,17 @@ class TestGCActive < Minitest::Test
       @@leaked_memory = ""
     end
 
-    crystalize lib: "memory_gobbler"
+    crystallize lib: "memory_gobbler"
     def gobble_gcable_memory(mb: :float)
       "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize lib: "memory_gobbler"
+    crystallize lib: "memory_gobbler"
     def leak_memory(mb: :float)
       @@leaked_memory += "a" * (mb * 1024 * 1024).to_i
     end
 
-    crystalize :uint64, async: true, lib: "memory_gobbler"
+    crystallize :uint64, async: true, lib: "memory_gobbler"
     def trigger_gc
       5.times do
         sleep 0.001.seconds
@@ -49,22 +49,22 @@ class TestGCActive < Minitest::Test
   end
   end
 
-  crystalize
+  crystallize
   def crystal_gc
     GC.collect
   end
 
-  crystalize
+  crystallize
   def crystal_alloc(returns: ObjectAllocTest)
     ObjectAllocTest.new({ hash: { 1 => 2 }, string: "hello", array: [1, 2, 3] })
   end
 
-  crystalize
+  crystallize
   def store_for_later(value: ObjectAllocTest)
     @@value = value
   end
 
-  crystalize
+  crystallize
   def clear_stored_value
     @@value = nil
     GC.collect

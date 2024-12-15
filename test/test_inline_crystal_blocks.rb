@@ -18,17 +18,17 @@ class TestInlineCrystalBlocks < Minitest::Test
       end
     end
 
-    crystalize :int32
+    crystallize :int32
     def call_inline_crystal(a: :int32, b: :int32)
       TestInlineCrystalBlocks::InlineCrystalModule.inline_crystal(a, b)
     end
 
-    crystalize :int32, lib: "inline-crystal-test"
+    crystallize :int32, lib: "inline-crystal-test"
     def call_inline_crystal_multi_lib(a: :int32, b: :int32)
       TestInlineCrystalBlocks::InlineCrystalModule.mult(a, b)
     end
 
-    crystalize :int32, lib: "dangling-lib"
+    crystallize :int32, lib: "dangling-lib"
     def call_inline_crystal_bad_lib(a: :int32, b: :int32)
       TestInlineCrystalBlocks::InlineCrystalModule.mult(a, b)
     end

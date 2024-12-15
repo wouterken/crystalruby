@@ -93,6 +93,10 @@ module CrystalRuby::Types
         union_types.map(&:native_type_expr).join(" | ")
       end
 
+      define_singleton_method(:named_type_expr) do
+        union_types.map(&:named_type_expr).join(" | ")
+      end
+
       define_singleton_method(:type_expr) do
         anonymous? ? native_type_expr : name
       end

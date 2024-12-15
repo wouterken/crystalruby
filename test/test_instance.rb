@@ -9,12 +9,12 @@ class TestInstance < Minitest::Test
     )
   end
 
-    crystalize
+    crystallize
     def first_name_cr=(first_name: String)
       self.first_name = first_name
     end
 
-    crystalize
+    crystallize
     def first_name_cr(returns: String)
       first_name.value
     end
@@ -29,7 +29,7 @@ class TestInstance < Minitest::Test
       last_name
     end
 
-    crystalize
+    crystallize
     def capitalize_full_name_cr
       self.first_name_cr = first_name_cr.capitalize
       self.last_name_rb = last_name_rb.capitalize
@@ -40,7 +40,7 @@ class TestInstance < Minitest::Test
       self.last_name_rb = last_name_rb.downcase
     end
 
-    crystalize
+    crystallize
     def yield_cr_to_rb(big: Bool, yield: Proc(Bool, Int32), returns: Int32)
       10 + yield(big)
     end
@@ -50,7 +50,7 @@ class TestInstance < Minitest::Test
       10 + yield(big)
     end
 
-    crystalize
+    crystallize
     def invoke_yield_rb_to_cr(big: Bool, returns: Int32)
       yield_rb_to_cr(big) do |big|
         if big
@@ -62,7 +62,7 @@ class TestInstance < Minitest::Test
     end
   end
 
-  crystalize
+  crystallize
   def construct_person(first_name: String, returns: Person)
     Person.new({first_name: first_name, last_name: "Doe", age: 30})
   end

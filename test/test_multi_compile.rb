@@ -9,7 +9,7 @@ class TestMultiCompile < Minitest::Test
 
   def test_inline_crystal
     MultiCompile.class_eval do
-      crystalize :int32, lib: "multi-compile"
+      crystallize :int32, lib: "multi-compile"
       def add(a: :int32, b: :int32)
         a + b
       end
@@ -19,7 +19,7 @@ class TestMultiCompile < Minitest::Test
     MultiCompile.add(1, 3)
 
     MultiCompile.class_eval do
-      crystalize :int32, lib: "multi-compile"
+      crystallize :int32, lib: "multi-compile"
       def mult(a: :int32, b: :int32)
         a * b
       end
@@ -28,7 +28,7 @@ class TestMultiCompile < Minitest::Test
     CrystalRuby::Library["multi-compile"].build!
 
     MultiCompile.class_eval do
-      crystalize -> { Int32 }
+      crystallize -> { Int32 }
       def sub(a: Int32, b: Int32)
         a - b
       end

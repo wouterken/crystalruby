@@ -52,21 +52,21 @@ class TestString < Minitest::Test
     assert_equal ss.ref_count, 1
   end
 
-  crystalize lib: "string_tests"
+  crystallize lib: "string_tests"
   def takes_string(a: String)
   end
 
-  crystalize lib: "string_tests"
+  crystallize lib: "string_tests"
   def returns_string(a: String, returns: String)
     return a
   end
 
-  crystalize lib: "string_tests"
+  crystallize lib: "string_tests"
   def returns_named_string(a: StringClass, returns: StringClass)
     return a
   end
 
-  crystalize lib: "string_tests"
+  crystallize lib: "string_tests"
   def returns_crystal_created_named_string(returns: StringClass)
     return StringClass.new("Test")
   end

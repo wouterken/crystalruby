@@ -5,12 +5,12 @@ require_relative "test_helper"
 class TestTypeTransforms < Minitest::Test
   include Adder
   module ::Adder
-    crystalize :bool
+    crystallize :bool
     def complex_argument_types(a: Int64 | Float64 | Nil, b: String | Array(Bool))
       true
     end
 
-    crystalize -> { Int32 | String | Hash(String, Array(NamedTuple(hello: Int32)) | Time) }
+    crystallize -> { Int32 | String | Hash(String, Array(NamedTuple(hello: Int32)) | Time) }
     def complex_return_type
       {
         "hello" => [
@@ -22,7 +22,7 @@ class TestTypeTransforms < Minitest::Test
       }
     end
 
-    crystalize -> { Int32 | String | Hash(String, Array(NamedTuple(hello: Array(Int32))) | Time) }
+    crystallize -> { Int32 | String | Hash(String, Array(NamedTuple(hello: Array(Int32))) | Time) }
     def complex_return_type
       {
         "hello" => [
@@ -34,44 +34,44 @@ class TestTypeTransforms < Minitest::Test
       }
     end
 
-    crystalize -> { Array(NamedTuple(hello: Array(Int32))) }
+    crystallize -> { Array(NamedTuple(hello: Array(Int32))) }
     def array_named_tuple_int_array
       [{ hello: [1, 2, 3] }]
     end
 
-    crystalize -> { Array(Int32) }
+    crystallize -> { Array(Int32) }
     def prim_array
       [9, 8, 7]
     end
 
-    crystalize -> { Array(Array(Int32)) }
+    crystallize -> { Array(Array(Int32)) }
     def nested_prim_array
       [[1, 8, 7], [5]]
     end
 
-    crystalize -> { Array(Array(Array(Array(Int32 | Nil)))) }
+    crystallize -> { Array(Array(Array(Array(Int32 | Nil)))) }
     def triple_nested_union_array
       [[[[9, 8, 7, nil]], [[1, 2, 3, nil]]]]
     end
 
-    crystalize -> { Hash(Hash(Hash(Hash(Hash(Int32, Int32), Int32), Int32), Int32), String) }
+    crystallize -> { Hash(Hash(Hash(Hash(Hash(Int32, Int32), Int32), Int32), Int32), String) }
     def five_nested_key_nested_hash
       {
         { { { { 1 => 2 } => 3 } => 4 } => 5 } => "hello"
       }
     end
 
-    crystalize -> { Hash(Int32, Hash(Int32, Hash(Int32, Hash(Int32, Hash(Int32, String))))) }
+    crystallize -> { Hash(Int32, Hash(Int32, Hash(Int32, Hash(Int32, Hash(Int32, String))))) }
     def five_nested_value_nested_hash
       { 1 => { 2 => { 3 => { 4 => { 5 => "hello" } } } } }
     end
 
-    crystalize -> { Tuple(Tuple(Tuple(Tuple(Int32, String, Array(Int32))))) }, raw: true
+    crystallize -> { Tuple(Tuple(Tuple(Tuple(Int32, String, Array(Int32))))) }, raw: true
     def four_nested_tuple
       %({ { { {  1, "hello", [1,2,3] } } } })
     end
 
-    crystalize lambda {
+    crystallize lambda {
       NamedTuple(value: NamedTuple(value: NamedTuple(value: NamedTuple(age: Int32, name: String, flags: Array(Int32)))))
     }
     def four_named_tuple
@@ -80,7 +80,7 @@ class TestTypeTransforms < Minitest::Test
 
     IntArrOrBoolArr = CRType { Array(Bool) | Array(Int32) }
 
-    crystalize
+    crystallize
     def method_with_named_types(a: IntArrOrBoolArr, returns: IntArrOrBoolArr)
       a
     end
