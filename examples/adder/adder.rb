@@ -1,8 +1,8 @@
 require "crystalruby"
 
 module Adder
-  crystallize [a: :int, b: :int] => :int
-  def add(a, b)
+  crystallize :int
+  def add(a: :int, b: :int)
     a + b
   end
 end
