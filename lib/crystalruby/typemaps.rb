@@ -108,6 +108,9 @@ module CrystalRuby
                            arg = crystalruby_type.new(arg) unless arg.is_a?(Types::Type)
                            crystalruby_type.anonymous? ? arg.native : arg
                          }
+                       # Strings in Crystal are UTF-8 encoded by default
+                       elsif crystalruby_type.equal?(:string)
+                         ->(arg) { arg.force_encoding("UTF-8") }
                        end,
         convert_crystal_to_lib_type: ->(expr) { convert_crystal_to_lib_type(expr, crystalruby_type) },
         convert_lib_to_crystal_type: ->(expr) { convert_lib_to_crystal_type(expr, crystalruby_type) }

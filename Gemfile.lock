@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    crystalruby (0.3.1)
+    crystalruby (0.3.2)
       digest
       ffi
       fileutils

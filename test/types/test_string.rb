@@ -3,7 +3,7 @@
 require_relative "../test_helper"
 
 class TestString < Minitest::Test
-  class StringClass < CRType{ String }
+  class StringClass < CRType { String }
   end
 
   def test_it_has_a_length
@@ -45,10 +45,10 @@ class TestString < Minitest::Test
     assert_equal ss.ref_count, 3
     ss3 = nil
     ss2 = nil
-    2.times{
+    2.times do
       GC.start
       sleep 0.1
-    }
+    end
     assert_equal ss.ref_count, 1
   end
 
@@ -58,21 +58,26 @@ class TestString < Minitest::Test
 
   crystallize lib: "string_tests"
   def returns_string(a: String, returns: String)
-    return a
+    a
   end
 
   crystallize lib: "string_tests"
   def returns_named_string(a: StringClass, returns: StringClass)
-    return a
+    a
   end
 
   crystallize lib: "string_tests"
   def returns_crystal_created_named_string(returns: StringClass)
-    return StringClass.new("Test")
+    StringClass.new("Test")
+  end
+
+  crystallize lib: "string_tests"
+  def returns_utf8_string(returns: String)
+    "foo різних мов світу"
   end
 
   def test_crystal_takes_string
-    assert (takes_string("Test") || true)
+    assert(takes_string("Test") || true)
   end
 
   def test_crystal_returns_string
@@ -85,6 +90,10 @@ class TestString < Minitest::Test
   end
 
   def test_returns_crystal_created_named_string
-    assert_equal returns_crystal_created_named_string(), StringClass["Test"]
+    assert_equal returns_crystal_created_named_string, StringClass["Test"]
+  end
+
+  def test_returns_utf8_string
+    assert_equal returns_utf8_string, "foo різних мов світу"
   end
 end

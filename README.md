@@ -46,7 +46,7 @@ crystallize :int32
 def count_primes_upto_cr(n: Int32)
   (2..n).each.count do |i|
     is_prime = true
-    (2..Math.sqrt(i).to_i).each do |j|
+    (2..Math.isqrt(i)).each do |j|
       if i % j == 0
         is_prime = false
         break
@@ -59,7 +59,7 @@ end
 def count_primes_upto_rb(n)
   (2..n).each.count do |i|
     is_prime = true
-    (2..Math.sqrt(i).to_i).each do |j|
+    (2..Integer.sqrt(i)).each do |j|
       if i % j == 0
         is_prime = false
         break

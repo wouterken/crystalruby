@@ -12,7 +12,8 @@ module CrystalRuby::Types
     end
 
     def value(native: false)
-      data_pointer.read_string(size)
+      # Strings in Crystal are UTF-8 encoded by default
+      data_pointer.read_string(size).force_encoding("UTF-8")
     end
   end
 end
