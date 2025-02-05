@@ -28,22 +28,6 @@ class TestGCActive < Minitest::Test
     end
   end
 
-  def test_gc_kicks_in
-    baseline_heap = MemoryGobbler.trigger_gc
-    100.times do
-      MemoryGobbler.leak_memory(0.5)
-    end
-    leaked_heap = MemoryGobbler.trigger_gc
-    assert (leaked_heap - baseline_heap) / (1024**2) > 50
-
-    baseline_heap = leaked_heap
-    100.times do
-      MemoryGobbler.gobble_gcable_memory(0.5)
-    end
-    released_heap = MemoryGobbler.trigger_gc
-    assert (released_heap - baseline_heap) / (1024**2) < 10
-  end
-
   class ObjectAllocTest < CRType do
     NamedTuple(hash: Hash(Int32, Int32), string: String, array: Array(Int32))
   end

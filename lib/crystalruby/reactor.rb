@@ -1,5 +1,6 @@
+require "json"
+
 module CrystalRuby
-  require 'json'
   # The Reactor represents a singleton Thread responsible for running all Ruby/crystal interop code.
   # Crystal's Fiber scheduler and GC assume all code is run on a single thread.
   # This class is responsible for multiplexing Ruby and Crystal code onto a single thread.
@@ -14,6 +15,13 @@ module CrystalRuby
     @single_thread_mode = false
 
     REACTOR_QUEUE = Queue.new
+
+    # Invoke GC every 100 ops
+    GC_OP_THRESHOLD = ENV.fetch("CRYSTAL_GC_OP_THRESHOLD", 100).to_i
+    # Or every 0.05 seconds
+    GC_INTERVAL = ENV.fetch("CRYSTAL_GC_INTERVAL", 0.05).to_f
+    # Or if we've gotten hold of a reference to at least 100KB or more of fresh memory since last GC
+    GC_BYTES_SEEN_THRESHOLD = ENV.fetch("CRYSTAL_GC_BYTES_SEEN_THRESHOLD", 100 * 1024).to_i
 
     # We maintain a map of threads, each with a mutex, condition variable, and result
     THREAD_MAP = Hash.new do |h, tid_or_thread, tid = tid_or_thread|
@@ -49,7 +57,7 @@ module CrystalRuby
       error_type = is_exception_type ? Object.const_get(error_type) : RuntimeError
       error = error_type.new(message)
       error.set_backtrace(JSON.parse(backtrace))
-      raise error  unless THREAD_MAP.key?(tid)
+      raise error unless THREAD_MAP.key?(tid)
 
       THREAD_MAP[tid][:error] = error
       THREAD_MAP[tid][:result] = nil
@@ -62,10 +70,12 @@ module CrystalRuby
 
     def await_result!
       mux, cond, result, err = thread_conditions.values_at(:mux, :cond, :result, :error)
-      cond.wait(mux) unless (result || err)
+      cond.wait(mux) unless result || err
       result, err, thread_conditions[:result], thread_conditions[:error] = thread_conditions.values_at(:result, :error)
       if err
-        combined_backtrace = err.backtrace[0..(err.backtrace.index{|m| m.include?('call_blocking_function')} || 2) - 3] + caller[5..-1]
+        combined_backtrace = err.backtrace[0..(err.backtrace.index { |m|
+                                                 m.include?("call_blocking_function")
+                                               } || 2) - 3] + caller[5..-1]
         err.set_backtrace(combined_backtrace)
         raise err
       end
@@ -78,27 +88,70 @@ module CrystalRuby
     end
 
     def stop!
-      if @main_loop
-        schedule_work!(self, :halt_loop!, :void, blocking: true, async: false)
-        @main_loop.join
-        @main_loop = nil
-        CrystalRuby.log_info "Reactor loop stopped"
-      end
+      return unless @main_loop
+
+      schedule_work!(self, :halt_loop!, :void, blocking: true, async: false)
+      @main_loop.join
+      @main_loop = nil
+      CrystalRuby.log_info "Reactor loop stopped"
     end
 
     def start!
+      @op_count = 0
       @main_loop ||= Thread.new do
         @main_thread_id = Thread.current.object_id
         CrystalRuby.log_debug("Starting reactor")
         CrystalRuby.log_debug("CrystalRuby initialized")
         while true
-          handler, *args = REACTOR_QUEUE.pop
-          send(handler, *args)
+          handler, *args, lib = REACTOR_QUEUE.pop
+          send(handler, *args, lib)
+          @op_count += 1
+          invoke_gc_if_due!(lib)
         end
       rescue StopReactor => e
       rescue StandardError => e
         CrystalRuby.log_error "Error: #{e}"
         CrystalRuby.log_error e.backtrace
+      end
+    end
+
+    def invoke_gc_if_due!(lib)
+      schedule_work!(lib, :gc, :void, blocking: true, async: false, lib: lib) if lib && gc_due?
+    end
+
+    def gc_due?
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      # Initialize state variables if not already set.
+      @last_gc_time       ||= now
+      @last_gc_op_count   ||= @op_count
+      @last_mem_check_time ||= now
+
+      # Calculate differences based on ops and time.
+      ops_since_last_gc  = @op_count - @last_gc_op_count
+      time_since_last_gc = now - @last_gc_time
+
+      # Start with our two “cheap” conditions.
+      due = (ops_since_last_gc >= GC_OP_THRESHOLD) || (time_since_last_gc >= GC_INTERVAL) || Types::Allocator.gc_bytes_seen > GC_BYTES_SEEN_THRESHOLD
+
+      if due
+        # Update the baseline values after GC is scheduled.
+        @last_gc_time     = now
+        # If we just did a memory check, use that value; otherwise, fetch one now.
+        @last_gc_op_count = @op_count
+        Types::Allocator.gc_hint_reset!
+        true
+      else
+        false
+      end
+    end
+
+    def start_gc_thread!(lib)
+      Thread.new do
+        loop do
+          schedule_work!(lib, :gc, :void, blocking: true, async: false, lib: lib) if gc_due?
+          sleep GC_INTERVAL
+        end
       end
     end
 
@@ -116,7 +169,7 @@ module CrystalRuby
       yield!(lib: lib, time: 0)
     end
 
-    def invoke_blocking!(receiver, op_name, *args, tvars)
+    def invoke_blocking!(receiver, op_name, *args, tvars, _lib)
       tvars[:error] = nil
       begin
         tvars[:result] = receiver.send(op_name, *args)
@@ -141,6 +194,7 @@ module CrystalRuby
                 "Single thread mode is enabled, cannot run in multi-threaded mode. " \
                 "Reactor was started from: #{@main_thread_id}, then called from #{Thread.current.object_id}"
         end
+        invoke_gc_if_due!(lib)
         return receiver.send(op_name, *args)
       end
 
@@ -149,7 +203,7 @@ module CrystalRuby
         REACTOR_QUEUE.push(
           case true
           when async then [:invoke_async!, receiver, op_name, *args, tvars[:thread_id], CALLBACKS_MAP[return_type], lib]
-          when blocking then [:invoke_blocking!, receiver, op_name, *args, tvars]
+          when blocking then [:invoke_blocking!, receiver, op_name, *args, tvars, lib]
           else [:invoke_await!, receiver, op_name, *args, lib]
           end
         )

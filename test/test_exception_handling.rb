@@ -18,6 +18,6 @@ class TestExceptionHandling < Minitest::Test
 
   def test_exception_handling
     assert_raises(RuntimeError) { Exceptional.throws(1, 2) }
-    assert_raises(RuntimeError) { Exceptional.for_type_error("Test") }
+    assert_raises(TypeError) { Exceptional.for_type_error("Test") }
   end
 end

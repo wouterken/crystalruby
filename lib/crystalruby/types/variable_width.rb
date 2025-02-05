@@ -19,6 +19,7 @@ module CrystalRuby
         inner_types: nil,
         inner_keys: nil,
         ffi_type: :pointer,
+        ffi_primitive: false,
         size_offset: 4,
         data_offset: 8,
         memsize: FFI.type_size(ffi_type),
@@ -32,7 +33,7 @@ module CrystalRuby
         Class.new(superclass) do
           bind_local_vars!(
             %i[typename error inner_types inner_keys ffi_type memsize convert_if data_offset size_offset
-               refsize], binding
+               refsize ffi_primitive], binding
           )
           class_eval(&block) if block_given?
         end

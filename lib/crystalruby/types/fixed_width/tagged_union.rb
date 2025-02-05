@@ -57,6 +57,11 @@ module CrystalRuby::Types
         union_types
       end
 
+      def total_memsize
+        type = self.class.union_types[data_pointer.read_uint8]
+        memsize + refsize + (type.primitive? ? type.memsize : value.total_memsize)
+      end
+
       define_singleton_method(:memsize) do
         union_types.map(&:refsize).max + 1
       end

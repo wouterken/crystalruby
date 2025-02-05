@@ -30,6 +30,10 @@ module CrystalRuby::Types
       define_singleton_method(:type_digest) do
         Digest::MD5.hexdigest(native_type_expr.to_s + allowed_values.map(&:to_s).join(","))
       end
+
+      def self.ffi_primitive_type
+        nil
+      end
     end
   end
 end

@@ -12,13 +12,14 @@ module CrystalRuby
         else allocate_new_from_value!(rbval)
         end
         self.class.increment_ref_count!(memory)
-        ObjectSpace.define_finalizer(self, self.class.finalize(memory))
+        ObjectSpace.define_finalizer(self, self.class.finalize(memory, self.class))
+        Allocator.gc_hint!(total_memsize)
       end
 
-      def self.finalize(memory)
-        lambda { |_|
+      def self.finalize(memory, type)
+        lambda do |_|
           decrement_ref_count!(memory)
-        }
+        end
       end
 
       def allocate_new_from_value!(rbval)
@@ -137,6 +138,10 @@ module CrystalRuby
         memory[size_offset].read_int32
       end
 
+      def total_memsize
+        memsize + refsize + size
+      end
+
       def address
         @memory.address
       end
@@ -180,6 +185,7 @@ module CrystalRuby
         superclass: FixedWidth,
         size_offset: 4,
         data_offset: 4,
+        ffi_primitive: false,
         &block
       )
         inner_types&.each(&Type.method(:validate!))
@@ -187,7 +193,7 @@ module CrystalRuby
         Class.new(superclass) do
           bind_local_vars!(
             %i[typename error inner_types inner_keys ffi_type memsize convert_if size_offset data_offset
-               refsize], binding
+               refsize ffi_primitive], binding
           )
           class_eval(&block) if block_given?
 

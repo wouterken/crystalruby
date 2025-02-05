@@ -47,7 +47,7 @@ module CrystalRuby
                      :write_mixed_byte_slices_to_uint8_array, :data_offset, :size_offset,
                      :union_types
 
-      attr_accessor :value, :memory
+      attr_accessor :value, :memory, :ffi_primitive
 
       def initialize(_rbval)
         @class = self.class
@@ -133,7 +133,7 @@ module CrystalRuby
       end
 
       def self.pointer_to_crystal_type_conversion(expr)
-        anonymous? ? "#{crystal_class_name}.new(#{expr}).native" : "#{crystal_class_name}.new(#{expr})"
+        anonymous? ? "#{crystal_class_name}.new(#{expr}).native_decr" : "#{crystal_class_name}.new_decr(#{expr})"
       end
 
       def self.crystal_type_to_pointer_type_conversion(expr)
@@ -243,6 +243,17 @@ module CrystalRuby
         inner_types.map(&:memsize).sum
       end
 
+      def total_memsize
+        memsize
+      end
+
+      # For non-container ffi_primitive non-named types,
+      # just use the raw FFI type, as it's much more efficient
+      # due to skipping Arc overhead.
+      def self.ffi_primitive_type
+        respond_to?(:ffi_primitive) && anonymous? ? ffi_primitive : nil
+      end
+
       def self.crystal_type
         lib_type(ffi_type)
       end
@@ -263,6 +274,10 @@ module CrystalRuby
 
       def self.inner_type
         inner_types.first
+      end
+
+      def self.subclass?(type)
+        type.is_a?(Class) && type < Types::Type
       end
 
       def self.type_expr

@@ -17,6 +17,14 @@ module CrystalRuby
       def to_s
         native.to_s
       end
+      
+      def self.new_decr(arg)
+        self.new(arg)
+      end
+
+      def native_decr
+        native
+      end
 
       def synchronize
         CrystalRuby.synchronize do

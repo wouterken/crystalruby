@@ -27,7 +27,7 @@ module CrystalRuby
     argv_ptr = ARGV1.to_unsafe
     Crystal.main_user_code(0, pointerof(argv_ptr))
     self.libname = String.new(libname)
-    LibGC.set_finalize_on_demand(1)
+    GC.init
   end
 
   # Explicit error handling (triggers exception within Ruby on the same thread)
@@ -98,6 +98,11 @@ module GC
     LibGC.collect
     LibGC.invoke_finalizers
   end
+end
+
+# Trigger GC
+fun gc : Void
+  GC.collect
 end
 
 # Yield to the Crystal scheduler from Ruby

@@ -35,6 +35,17 @@ module CrystalRuby
         8
       end
 
+      def self.new_decr(arg)
+        new_value = self.new(arg)
+        self.decrement_ref_count!(new_value.memory)
+        new_value
+      end
+
+      def native_decr
+        self.class.decrement_ref_count!(@memory)
+        native
+      end
+
 
       def self.free!(memory)
         # Decrease ref counts for any data we are pointing to
@@ -64,6 +75,13 @@ module CrystalRuby
 
       def ref_count=(val)
         memory.as(Pointer(::UInt32))[0] = value
+      end
+
+      # When we pass to Ruby, we increment the ref count
+      # for Ruby to decrement again once it receives.
+      def return_value
+        FixedWidth.increment_ref_count!(memory)
+        memory
       end
 
       # Data pointer follows the ref count (and size for variable width types)

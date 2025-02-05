@@ -11,7 +11,7 @@ CrystalRuby.configure do |config|
   config.verbose = false
   config.log_level = :warn
   config.colorize_log_output = true
-  config.debug = false
+  config.debug = true
   config.single_thread_mode = !!ENV["CRYSTAL_RUBY_SINGLE_THREAD_MODE"]
 end
 

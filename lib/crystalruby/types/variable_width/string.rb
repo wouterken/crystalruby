@@ -1,5 +1,5 @@
 module CrystalRuby::Types
-  String = VariableWidth.build(:String, convert_if: [String, Root::String]) do
+  String = VariableWidth.build(:String, ffi_primitive: :string, convert_if: [String, Root::String]) do
     def self.cast!(rbval)
       rbval.to_s
     end

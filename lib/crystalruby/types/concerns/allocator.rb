@@ -2,9 +2,21 @@ module CrystalRuby
   module Types
     # Module for memory allocation and tracking functionality
     module Allocator
-
       # Called when module is included in a class
       # @param base [Class] The class including this module
+
+      def self.gc_hint!(size)
+        @bytes_seen_since_gc = (@bytes_seen_since_gc || 0) + size
+      end
+
+      def self.gc_bytes_seen
+        @bytes_seen_since_gc ||= 0
+      end
+
+      def self.gc_hint_reset!
+        @bytes_seen_since_gc = 0
+      end
+
       def self.included(base)
         base.class_eval do
           # Synchronizes a block using mutex
@@ -21,7 +33,7 @@ module CrystalRuby
 
           extend FFI::Library
           ffi_lib "c"
-          attach_function :_calloc, :calloc, [:size_t, :size_t], :pointer
+          attach_function :_calloc, :calloc, %i[size_t size_t], :pointer
           attach_function :_free, :free, [:pointer], :void
           define_singleton_method(:ptr, &FFI::Pointer.method(:new))
           define_method(:ptr, &FFI::Pointer.method(:new))

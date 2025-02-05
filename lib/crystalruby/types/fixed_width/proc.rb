@@ -4,7 +4,8 @@ module CrystalRuby::Types
     "and a single return type (or Nil if it does not return a value)")
 
   def self.Proc(*types)
-    proc_type = FixedWidth.build(:Proc, convert_if: [::Proc], inner_types: types, ffi_type: :pointer) do
+    proc_type = FixedWidth.build(:Proc, convert_if: [::Proc], inner_types: types,
+                                        ffi_type: :pointer) do
       @data_offset = 4
 
       def self.cast!(rbval)
@@ -57,12 +58,12 @@ module CrystalRuby::Types
                   result = nil
                   if Fiber.current == Thread.current.main_fiber
                     block_value = #{inner_types[-1].crystal_class_name}.new(__yield_to.call(#{inner_types.size.-(1).times.map { |i| "v#{i}" }.join(",")}))
-                    result = #{inner_types[-1].anonymous? ? "block_value.native" : "block_value"}
+                    result = #{inner_types[-1].anonymous? ? "block_value.native_decr" : "block_value"}
                     next #{inner_types.last == CrystalRuby::Types::Nil ? "result" : "result.not_nil!"}
                   else
                     CrystalRuby.queue_callback(->{
                       block_value = #{inner_types[-1].crystal_class_name}.new(__yield_to.call(#{inner_types.size.-(1).times.map { |i| "v#{i}" }.join(",")}))
-                      result = #{inner_types[-1].anonymous? ? "block_value.native" : "block_value"}
+                      result = #{inner_types[-1].anonymous? ? "block_value.native_decr" : "block_value"}
                       callback_done_channel.send(nil)
                     })
                   end

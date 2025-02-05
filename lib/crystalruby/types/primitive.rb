@@ -60,11 +60,12 @@ module CrystalRuby
         memsize: FFI.type_size(ffi_type),
         convert_if: [],
         error: nil,
+        ffi_primitive: false,
         superclass: Primitive,
         &block
       )
         Class.new(superclass) do
-          %w[typename ffi_type memsize convert_if error].each do |name|
+          %w[typename ffi_type memsize convert_if error ffi_primitive].each do |name|
             define_singleton_method(name) { binding.local_variable_get("#{name}") }
             define_method(name) { binding.local_variable_get("#{name}") }
           end

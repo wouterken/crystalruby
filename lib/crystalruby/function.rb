@@ -66,6 +66,7 @@ module CrystalRuby
           raise ArgumentError, "no block given but function expects block" if !blk && func.takes_block?
 
           args << blk if blk
+
           func.map_args!(args)
           args.unshift(memory) if func.instance_method
 
@@ -86,27 +87,35 @@ module CrystalRuby
     def register_callback!
       return unless ruby
 
-      @callback_func = FFI::Function.new(ffi_ret_type, ffi_types) do |*args|
+      ret_type = ffi_ret_type == :string ? :pointer : ffi_ret_type
+      @callback_func = FFI::Function.new(ret_type, ffi_types) do |*args|
         receiver = instance_method ? owner.new(args.shift) : owner
-        ret_val = if takes_block?
-                    block_arg = arg_type_map[:__yield_to][:crystalruby_type].new(args.pop)
-                    receiver.send(name, *unmap_args(args)) do |*args|
-                      args = args.map.with_index do |arg, i|
-                        arg = block_arg.inner_types[i].new(arg) unless arg.is_a?(block_arg.inner_types[i])
-                        arg.memory
-                      end
-                      return_val = block_arg.invoke(*args)
-                      unless return_val.is_a?(block_arg.inner_types[-1])
-                        return_val = block_arg.inner_types[-1].new(return_val)
-                      end
-                      block_arg.inner_types[-1].anonymous? ? return_val.value : return_val
-                    end
-                  else
-                    receiver.send(name, *unmap_args(args))
-                  end
+        ret_val = \
+          if takes_block?
+            block_arg = arg_type_map[:__yield_to][:crystalruby_type].new(args.pop)
+            receiver.send(name, *unmap_args(args)) do |*args|
+              args = args.map.with_index do |arg, i|
+                arg = block_arg.inner_types[i].new(arg) unless arg.is_a?(block_arg.inner_types[i])
+                arg.memory
+              end
+              return_val = block_arg.invoke(*args)
+              return_val = block_arg.inner_types[-1].new(return_val) unless return_val.is_a?(block_arg.inner_types[-1])
+              block_arg.inner_types[-1].anonymous? ? return_val.value : return_val
+            end
+          else
+            receiver.send(name, *unmap_args(args))
+          end
         unmap_retval(ret_val)
       end
-      Reactor.schedule_work!(lib, :"register_#{name.to_s.gsub("?", "q").gsub("=", "eq").gsub("!", "bang")}_callback", @callback_func, :void, blocking: true, async: false)
+
+      Reactor.schedule_work!(
+        lib,
+        :"register_#{name.to_s.gsub("?", "q").gsub("=", "eq").gsub("!", "bang")}_callback",
+        @callback_func,
+        :void,
+        blocking: true,
+        async: false
+      )
     end
 
     # Attaches the crystallized FFI functions to their related Ruby modules and classes.
@@ -245,7 +254,7 @@ module CrystalRuby
 
     def register_custom_types!(lib)
       custom_types.each do |crystalruby_type|
-        next unless crystalruby_type.is_a?(Class) && crystalruby_type < Types::Type
+        next unless Types::Type.subclass?(crystalruby_type)
 
         [*crystalruby_type.nested_types].uniq.each do |type|
           lib.register_type!(type)
@@ -263,7 +272,7 @@ module CrystalRuby
 
         mapped = argmap[args[index]]
         case mapped
-        when CrystalRuby::Types::Type then
+        when CrystalRuby::Types::Type
           args[index] = mapped.memory
           (refs ||= []) << mapped
         else
@@ -291,10 +300,12 @@ module CrystalRuby
     end
 
     def unmap_retval(retval)
+      return FFI::MemoryPointer.from_string(retval) if return_type_map[:ffi_ret_type] == :string
       return retval unless return_type_map[:arg_mapper]
 
       retval = return_type_map[:arg_mapper][retval]
-      retval = retval.memory if retval.kind_of?(CrystalRuby::Types::Type)
+
+      retval = retval.memory if retval.is_a?(CrystalRuby::Types::Type)
       retval
     end
 

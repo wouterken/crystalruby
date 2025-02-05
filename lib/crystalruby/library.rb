@@ -214,9 +214,7 @@ module CrystalRuby
         unless compiled?
           FileUtils.rm_f(lib_file)
 
-          if shard_dependencies.any? && shards.empty?
-            rewrite_shards_file!
-          end
+          rewrite_shards_file! if shard_dependencies.any? && shards.empty?
 
           CrystalRuby::Compilation.install_shards!(src_dir)
           CrystalRuby::Compilation.compile!(
@@ -239,14 +237,16 @@ module CrystalRuby
         singleton_class.class_eval do
           extend FFI::Library
           ffi_lib lib_file
-          %i[yield init].each do |method_name|
+          %i[yield init gc].each do |method_name|
             singleton_class.undef_method(method_name) if singleton_class.method_defined?(method_name)
             undef_method(method_name) if method_defined?(method_name)
           end
           attach_function :init, %i[string pointer pointer], :void
           attach_function :yield, %i[], :int
+          attach_function :gc, %i[], :void
           lib_methods.each_value.select(&:ruby).each do |method|
-            attach_function :"register_#{method.name.to_s.gsub("?", "q").gsub("=", "eq").gsub("!", "bang")}_callback", %i[pointer], :void
+            attach_function :"register_#{method.name.to_s.gsub("?", "q").gsub("=", "eq").gsub("!", "bang")}_callback",
+                            %i[pointer], :void
           end
         end
 

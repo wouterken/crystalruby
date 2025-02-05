@@ -25,8 +25,8 @@ class TestInstance < Minitest::Test
     end
 
     expose_to_crystal
-    def last_name_rb(returns: String)
-      last_name
+    def last_name_rb(returns: :string)
+      last_name.value
     end
 
     crystallize
@@ -64,9 +64,8 @@ class TestInstance < Minitest::Test
 
   crystallize
   def construct_person(first_name: String, returns: Person)
-    Person.new({first_name: first_name, last_name: "Doe", age: 30})
+    Person.new({ first_name: first_name, last_name: "Doe", age: 30 })
   end
-
 
   def test_can_construct_instance
     assert Person.new(first_name: "John", last_name: "Doe", age: 30)
@@ -74,7 +73,7 @@ class TestInstance < Minitest::Test
 
   def test_can_construct_new_instance_in
     person = construct_person("Hi Crystal")
-    assert_equal person , Person.new(first_name: "Hi Crystal", last_name: "Doe", age: 30)
+    assert_equal person, Person.new(first_name: "Hi Crystal", last_name: "Doe", age: 30)
   end
 
   def test_can_update_attribute_in_crystal
@@ -109,8 +108,7 @@ class TestInstance < Minitest::Test
 
   def test_yield_cr_to_rb
     Person.new(first_name: "john", last_name: "doe", age: 30).tap do |person|
-      assert_equal(person.yield_cr_to_rb(false){ 1234}, 1244)
+      assert_equal(person.yield_cr_to_rb(false) { 1234 }, 1244)
     end
   end
-
 end

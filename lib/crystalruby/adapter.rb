@@ -36,7 +36,7 @@ module CrystalRuby
     # @option options [Boolean] :async (false) Mark the method as async (allows multiplexing).
     # @option options [String] :lib ("crystalruby") The name of the library to compile the Crystal code into.
     # @option options [Proc] :block An optional wrapper Ruby block that wraps around any invocations of the crystal code
-    def crystallize( returns=:void, raw: false, async: false, lib: "crystalruby", &block)
+    def crystallize(returns = :void, raw: false, async: false, lib: "crystalruby", &block)
       (self == TOPLEVEL_BINDING.receiver ? Object : self).instance_eval do
         @crystallize_next = {
           raw: raw,
@@ -49,7 +49,7 @@ module CrystalRuby
     end
 
     # Alias for `crystallize`
-    alias :crystalize :crystallize
+    alias crystalize crystallize
 
     # Exposes a Ruby method to one or more Crystal libraries.
     # Type annotations follow the same rules as the `crystallize` method, but are
@@ -58,7 +58,7 @@ module CrystalRuby
     # @param [Hash] options The options hash.
     # @option options [Boolean] :raw (false) Pass raw Crystal code to the compiler as a string.
     # @option options [String] :libs (["crystalruby"]) The name of the Crystal librarie(s) to expose the Ruby code to.
-    def expose_to_crystal( returns=:void, libs: ["crystalruby"])
+    def expose_to_crystal(returns = :void, libs: ["crystalruby"])
       (self == TOPLEVEL_BINDING.receiver ? Object : self).instance_eval do
         @expose_next_to_crystal = {
           returns: returns,
@@ -70,7 +70,7 @@ module CrystalRuby
     # Define a shard dependency
     # This dependency will be automatically injected into the shard.yml file for
     # the given library and installed upon compile if it is not already installed.
-    def shard(shard_name, lib: 'crystalruby', **opts)
+    def shard(shard_name, lib: "crystalruby", **opts)
       CrystalRuby::Library[lib].require_shard(shard_name, **opts)
     end
 
@@ -78,14 +78,18 @@ module CrystalRuby
     # This is useful for defining classes, modules, performing set-up tasks etc.
     # See: docs for .crystallize to understand the `raw` and `lib` parameters.
     def crystal(raw: false, lib: "crystalruby", &block)
-      inline_crystal_body = respond_to?(:name) ? Template::InlineChunk.render(
-        {
-          module_name: name,
-          body: SourceReader.extract_source_from_proc(block, raw: raw),
-          mod_or_class: self.kind_of?(Class) && self < Types::Type ? "class" : "module",
-          superclass: self.kind_of?(Class) && self < Types::Type ? "< #{self.crystal_supertype}" : ""
-        }) :
-        SourceReader.extract_source_from_proc(block, raw: raw)
+      inline_crystal_body = if respond_to?(:name)
+                              Template::InlineChunk.render(
+                                {
+                                  module_name: name,
+                                  body: SourceReader.extract_source_from_proc(block, raw: raw),
+                                  mod_or_class: is_a?(Class) && self < Types::Type ? "class" : "module",
+                                  superclass: is_a?(Class) && self < Types::Type ? "< #{crystal_supertype}" : ""
+                                }
+                              )
+                            else
+                              SourceReader.extract_source_from_proc(block, raw: raw)
+                            end
 
       CrystalRuby::Library[lib].crystallize_chunk(
         self,
@@ -93,7 +97,6 @@ module CrystalRuby
         inline_crystal_body
       )
     end
-
 
     # This method provides a useful DSL for defining Crystal types in pure Ruby
     # MyType = CRType{ Int32 | Hash(String, Array(Bool) | Float65 | Nil) }
@@ -152,14 +155,16 @@ module CrystalRuby
 
       owner = method.owner.singleton_class? ? method.owner.attached_object : method.owner
       owner.class_eval(src)
-      owner.instance_eval(src) unless method.kind_of?(UnboundMethod) && method.owner.ancestors.include?(CrystalRuby::Types::Type)
-      method = owner.send(method.kind_of?(UnboundMethod) ? :instance_method : :method, method.name)
+      unless method.is_a?(UnboundMethod) && method.owner.ancestors.include?(CrystalRuby::Types::Type)
+        owner.instance_eval(src)
+      end
+      method = owner.send(method.is_a?(UnboundMethod) ? :instance_method : :method, method.name)
 
       libs.each do |lib|
         CrystalRuby::Library[lib].expose_method(
           method,
           args,
-          returns,
+          returns
         )
       end
     end
