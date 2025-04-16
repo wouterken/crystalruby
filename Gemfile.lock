@@ -5,6 +5,7 @@ PATH
       digest
       ffi
       fileutils (~> 1.7)
+      logger
       prism (>= 1.3.0, < 1.5.0)
 
 GEM
@@ -12,6 +13,7 @@ GEM
   specs:
     ansi (1.5.0)
     ast (2.4.2)
+    benchmark (0.4.0)
     builder (3.3.0)
     debug (1.9.2)
       irb (~> 1.10)
@@ -19,6 +21,7 @@ GEM
     digest (3.1.1)
     ffi (1.17.0)
     ffi (1.17.0-arm64-darwin)
+    fiddle (1.1.8)
     fileutils (1.7.2)
     io-console (0.7.2)
     irb (1.12.0)
@@ -26,12 +29,14 @@ GEM
       reline (>= 0.4.2)
     json (2.7.1)
     language_server-protocol (3.17.0.3)
+    logger (1.7.0)
     minitest (5.22.3)
     minitest-reporters (1.7.1)
       ansi
       builder
       minitest (>= 5.0)
       ruby-progressbar
+    ostruct (0.6.1)
     parallel (1.24.0)
     parser (3.3.0.5)
       ast (~> 2.4.1)
@@ -70,11 +75,13 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  benchmark
   crystalruby!
   debug (>= 1.1.0)
-  ffi
+  fiddle
   minitest (~> 5.16)
   minitest-reporters (~> 1.4)
+  ostruct
   rake (~> 13.0)
   rubocop (~> 1.21)
 

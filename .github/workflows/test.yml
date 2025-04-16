@@ -1,0 +1,57 @@
+name: Test
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+  schedule:
+    - cron: 13 7 * * 6
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby_version:
+          - 3.3.8
+          - 3.4.3
+        crystal_version:
+          - 1.15.1
+          - latest
+        experimental: [false]
+        include:
+          - ruby_version: head
+            crystal_version: nightly
+            experimental: true
+          - ruby_version: head
+            crystal_version: 1.16.0
+            experimental: true
+    name: Ruby ${{ matrix.ruby_version }} / Crystal ${{ matrix.crystal_version }}
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: "[Git] Checkout code"
+        uses: actions/checkout@v4
+
+      - uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: ${{ matrix.crystal_version }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby_version }}
+          bundler-cache: true
+
+      - name: "[Test] Run tests"
+        run: |
+          bundle exec crystalruby clean
+          bundle exec rake test
+        env:
+          CRYSTAL_RUBY_SINGLE_THREAD_MODE: true
+
+      - name: "[Test] Validate examples"
+        run: |
+          for example in examples/**/*.rb; do
+            echo " > Processing $example..."
+            bundle exec ruby $example
+          done
