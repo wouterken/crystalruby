@@ -10,8 +10,10 @@ module CrystalRuby
     module_function
 
     class SingleThreadViolation < StandardError; end
+
     class StopReactor < StandardError; end
 
+    @op_count = 0
     @single_thread_mode = false
 
     REACTOR_QUEUE = Queue.new
@@ -44,7 +46,7 @@ module CrystalRuby
 
     # We memoize callbacks, once per return type
     CALLBACKS_MAP = Hash.new do |h, rt|
-      h[rt] = FFI::Function.new(:void, [:int, *(rt == :void ? [] : [rt])]) do |tid, ret|
+      h[rt] = FFI::Function.new(:void, [:int, *((rt == :void) ? [] : [rt])]) do |tid, ret|
         THREAD_MAP[tid][:error] = nil
         THREAD_MAP[tid][:result] = ret
         THREAD_MAP[tid][:cond].signal
@@ -108,8 +110,8 @@ module CrystalRuby
           @op_count += 1
           invoke_gc_if_due!(lib)
         end
-      rescue StopReactor => e
-      rescue StandardError => e
+      rescue StopReactor
+      rescue => e
         CrystalRuby.log_error "Error: #{e}"
         CrystalRuby.log_error e.backtrace
       end
@@ -123,12 +125,13 @@ module CrystalRuby
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       # Initialize state variables if not already set.
-      @last_gc_time       ||= now
-      @last_gc_op_count   ||= @op_count
+      @last_gc_time ||= now
+      @op_count ||= 0
+      @last_gc_op_count ||= @op_count
       @last_mem_check_time ||= now
 
       # Calculate differences based on ops and time.
-      ops_since_last_gc  = @op_count - @last_gc_op_count
+      ops_since_last_gc = @op_count - @last_gc_op_count
       time_since_last_gc = now - @last_gc_time
 
       # Start with our two “cheap” conditions.
@@ -136,7 +139,7 @@ module CrystalRuby
 
       if due
         # Update the baseline values after GC is scheduled.
-        @last_gc_time     = now
+        @last_gc_time = now
         # If we just did a memory check, use that value; otherwise, fetch one now.
         @last_gc_op_count = @op_count
         Types::Allocator.gc_hint_reset!
@@ -173,10 +176,10 @@ module CrystalRuby
       tvars[:error] = nil
       begin
         tvars[:result] = receiver.send(op_name, *args)
-      rescue StopReactor => e
+      rescue StopReactor
         tvars[:cond].signal
         raise
-      rescue StandardError => e
+      rescue => e
         tvars[:error] = e
       end
       tvars[:cond].signal
@@ -191,8 +194,8 @@ module CrystalRuby
       if @single_thread_mode || (Thread.current.object_id == @main_thread_id && op_name != :yield)
         unless Thread.current.object_id == @main_thread_id
           raise SingleThreadViolation,
-                "Single thread mode is enabled, cannot run in multi-threaded mode. " \
-                "Reactor was started from: #{@main_thread_id}, then called from #{Thread.current.object_id}"
+            "Single thread mode is enabled, cannot run in multi-threaded mode. " \
+            "Reactor was started from: #{@main_thread_id}, then called from #{Thread.current.object_id}"
         end
         invoke_gc_if_due!(lib)
         return receiver.send(op_name, *args)
