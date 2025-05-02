@@ -25,6 +25,9 @@ module CrystalRuby
     return if self.initialized
     self.initialized = true
     argv_ptr = ARGV1.to_unsafe
+    {%% if compare_versions(Crystal::VERSION, "1.16.0") >= 0  %%}
+      Crystal.init_runtime
+    {%% end %%}
     Crystal.main_user_code(0, pointerof(argv_ptr))
     self.libname = String.new(libname)
     GC.init
@@ -57,7 +60,7 @@ module CrystalRuby
     self.callbacks.send(callback)
   end
 
-  def self.synchronize
+  def self.synchronize(&)
     LibC.pthread_mutex_lock(self.rc_mux)
     yield
     LibC.pthread_mutex_unlock(self.rc_mux)
