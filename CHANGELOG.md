@@ -1,3 +1,7 @@
+## [0.3.4] - 2025-05-04
+
+- Added support for Crystal 1.16.0
+
 ## [Unreleased]
 
 - Added support for running `crustalruby` without the `crystal` binary in dry mode. [#15]
